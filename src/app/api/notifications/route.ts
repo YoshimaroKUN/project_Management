@@ -82,7 +82,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: '認証が必要です' }, { status: 401 })
     }
 
-    const { id, isRead } = await request.json()
+    // Only admin can update notifications
+    if (session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: '権限がありません' }, { status: 403 })
+    }
+
+    const { id, title, content, type } = await request.json()
 
     if (!id) {
       return NextResponse.json({ error: '通知IDが必要です' }, { status: 400 })
@@ -90,7 +95,11 @@ export async function PUT(request: NextRequest) {
 
     const notification = await prisma.notification.update({
       where: { id },
-      data: { isRead: isRead !== undefined ? isRead : true },
+      data: { 
+        ...(title && { title }),
+        ...(content && { content }),
+        ...(type && { type }),
+      },
     })
 
     return NextResponse.json({ notification })
