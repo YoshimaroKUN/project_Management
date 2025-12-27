@@ -324,18 +324,21 @@ export default function SettingsPage() {
                   className="relative w-24 h-24 rounded-full cursor-pointer group"
                   onClick={handleAvatarClick}
                 >
-                  {avatar ? (
-                    <Image
-                      src={avatar}
-                      alt="アバター"
-                      fill
-                      className="rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                      <User className="w-12 h-12 text-white" />
-                    </div>
-                  )}
+                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center overflow-hidden">
+                    {avatar ? (
+                      <Image
+                        src={avatar}
+                        alt="アバター"
+                        fill
+                        className="rounded-full object-cover"
+                        unoptimized
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    ) : null}
+                    <User className="w-12 h-12 text-white absolute" />
+                  </div>
                   {/* Overlay on hover */}
                   <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     {uploading ? (

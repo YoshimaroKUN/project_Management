@@ -337,21 +337,26 @@ export default function ChatPage() {
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden relative ${
                     message.role === 'user'
-                      ? session?.user?.avatar ? '' : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                      ? 'bg-gradient-to-br from-blue-500 to-cyan-500'
                       : 'bg-gradient-to-br from-purple-500 to-pink-500'
                   }`}
                 >
                   {message.role === 'user' ? (
-                    session?.user?.avatar ? (
-                      <Image
-                        src={session.user.avatar}
-                        alt="アバター"
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <User className="w-5 h-5 text-white" />
-                    )
+                    <>
+                      {session?.user?.avatar && (
+                        <Image
+                          src={session.user.avatar}
+                          alt="アバター"
+                          fill
+                          className="object-cover"
+                          unoptimized
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none'
+                          }}
+                        />
+                      )}
+                      <User className="w-5 h-5 text-white absolute" />
+                    </>
                   ) : (
                     <Sparkles className="w-5 h-5 text-white" />
                   )}

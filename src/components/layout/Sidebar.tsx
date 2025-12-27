@@ -133,19 +133,21 @@ export default function Sidebar() {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors"
               >
-                <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden relative">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden relative bg-gradient-to-br from-blue-500 to-purple-600">
                   {session?.user?.avatar ? (
                     <Image
                       src={session.user.avatar}
                       alt="アバター"
                       fill
                       className="object-cover"
+                      unoptimized
+                      onError={(e) => {
+                        // 画像読み込み失敗時は非表示にしてフォールバックを表示
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
                     />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-                      <User className="w-5 h-5 text-white" />
-                    </div>
-                  )}
+                  ) : null}
+                  <User className="w-5 h-5 text-white absolute" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-medium text-white truncate">

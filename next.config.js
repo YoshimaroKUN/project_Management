@@ -22,6 +22,8 @@ const nextConfig = {
         hostname: '*.ngrok.io',
       },
     ],
+    // ローカルアップロードファイルは最適化をスキップ
+    unoptimized: true,
   },
   experimental: {
     serverComponentsExternalPackages: ['bcryptjs'],
