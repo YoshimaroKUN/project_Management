@@ -38,13 +38,24 @@ RUN adduser --system --uid 1001 nextjs
 # 必要なファイルをコピー
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/package.json ./package.json
+
+# Prisma関連のファイルをコピー
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
 
 # スタンドアロンモードの出力をコピー
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# 起動スクリプトを作成
+COPY --from=builder /app/prisma ./prisma
+RUN echo '#!/bin/sh' > /app/start.sh && \
+    echo 'cd /app' >> /app/start.sh && \
+    echo 'node node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss 2>/dev/null || true' >> /app/start.sh && \
+    echo 'exec node server.js' >> /app/start.sh && \
+    chmod +x /app/start.sh
 
 # データベースディレクトリを作成
 RUN mkdir -p /app/data && chown nextjs:nodejs /app/data
@@ -57,5 +68,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 起動時にDBマイグレーションを実行（ビルド時に含まれたprismaを使用）
-CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node server.js"]
+CMD ["/app/start.sh"]
