@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Next.js
+.next
+out
+
+# Database
+*.db
+*.db-journal
+data/
+
+# Uploads
+public/uploads/avatars/*
+!public/uploads/avatars/.gitkeep
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+DEPLOY.md
+
+# Test
+coverage
+.nyc_output

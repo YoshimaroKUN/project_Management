@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    container_name: campus-portal
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=file:/app/data/dev.db
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - DIFY_API_URL=${DIFY_API_URL:-https://api.dify.ai/v1}
+      - DIFY_API_KEY=${DIFY_API_KEY}
+    volumes:
+      # データベースを永続化
+      - ./data:/app/data
+      # アップロードファイルを永続化
+      - ./uploads:/app/public/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/auth/session"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ngrokでインターネット公開（オプション）
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: campus-portal-ngrok
+    restart: unless-stopped
+    command:
+      - "http"
+      - "app:3000"
+      - "--domain=${NGROK_DOMAIN}"
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    depends_on:
+      - app
+    profiles:
+      - ngrok  # --profile ngrok を付けた時のみ起動
