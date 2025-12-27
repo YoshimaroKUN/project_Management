@@ -3,7 +3,7 @@ FROM node:20-alpine AS base
 
 # 依存関係のインストール
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -30,12 +30,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN apk add --no-cache openssl
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # 必要なファイルをコピー
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 # スタンドアロンモードの出力をコピー
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
@@ -52,5 +57,5 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# 起動時にDBマイグレーションを実行
-CMD ["sh", "-c", "npx prisma db push && node server.js"]
+# 起動時にDBマイグレーションを実行（ビルド時に含まれたprismaを使用）
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node server.js"]
