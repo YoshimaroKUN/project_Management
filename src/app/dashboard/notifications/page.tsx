@@ -20,6 +20,8 @@ import {
   ExternalLink,
   Upload,
   File,
+  Edit2,
+  Save,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -80,6 +82,13 @@ export default function NotificationsPage() {
   const [linkTitle, setLinkTitle] = useState('')
   const [linkUrl, setLinkUrl] = useState('')
 
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editContent, setEditContent] = useState('')
+  const [editType, setEditType] = useState('info')
+  const [saving, setSaving] = useState(false)
+
   // Check if user is admin
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
@@ -129,6 +138,59 @@ export default function NotificationsPage() {
       }
     } catch (error) {
       console.error('Failed to create notification:', error)
+    }
+  }
+
+  const startEdit = () => {
+    if (!selectedNotification) return
+    setEditTitle(selectedNotification.title)
+    setEditContent(selectedNotification.content)
+    setEditType(selectedNotification.type)
+    setIsEditing(true)
+  }
+
+  const cancelEdit = () => {
+    setIsEditing(false)
+    setEditTitle('')
+    setEditContent('')
+    setEditType('info')
+  }
+
+  const handleUpdate = async () => {
+    if (!selectedNotification) return
+    
+    setSaving(true)
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedNotification.id,
+          title: editTitle,
+          content: editContent,
+          type: editType,
+        }),
+      })
+
+      if (response.ok) {
+        await fetchNotifications()
+        // 更新後のデータを再取得
+        const updatedNotifications = await fetch('/api/notifications?includeAttachments=true')
+        if (updatedNotifications.ok) {
+          const data = await updatedNotifications.json()
+          const updated = data.notifications.find((n: Notification) => n.id === selectedNotification.id)
+          if (updated) setSelectedNotification(updated)
+        }
+        setIsEditing(false)
+      } else {
+        const data = await response.json()
+        alert(data.error || '更新に失敗しました')
+      }
+    } catch (error) {
+      console.error('Failed to update notification:', error)
+      alert('更新中にエラーが発生しました')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -398,10 +460,101 @@ export default function NotificationsPage() {
           <h2 className="text-lg font-semibold text-white mb-4">詳細・添付管理</h2>
           {selectedNotification ? (
             <div className="glass-card p-6 space-y-6">
-              <div>
-                <h3 className="text-xl font-semibold text-white mb-2">{selectedNotification.title}</h3>
-                <p className="text-gray-400 whitespace-pre-wrap">{selectedNotification.content}</p>
-              </div>
+              {/* Title & Content - Edit mode */}
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 mb-1 block">タイトル</label>
+                    <input
+                      type="text"
+                      value={editTitle}
+                      onChange={(e) => setEditTitle(e.target.value)}
+                      className="input-modern"
+                      placeholder="お知らせのタイトル"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 mb-1 block">内容</label>
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="input-modern resize-none"
+                      rows={6}
+                      placeholder="お知らせの内容"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-300 mb-2 block">タイプ</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {typeOptions.map((option) => {
+                        const OptionIcon = option.icon
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setEditType(option.value)}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
+                              editType === option.value
+                                ? option.color
+                                : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                            }`}
+                          >
+                            <OptionIcon className="w-4 h-4" />
+                            {option.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleUpdate}
+                      disabled={saving}
+                      className="flex-1 btn-primary flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      {saving ? '保存中...' : '保存'}
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="btn-secondary"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-xl font-semibold text-white">{selectedNotification.title}</h3>
+                    <button
+                      onClick={startEdit}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-primary-400"
+                      title="編集"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2 mb-3">
+                    {(() => {
+                      const typeInfo = getTypeInfo(selectedNotification.type)
+                      const TypeIcon = typeInfo.icon
+                      return (
+                        <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs ${typeInfo.color}`}>
+                          <TypeIcon className="w-3 h-3" />
+                          {typeInfo.label}
+                        </span>
+                      )
+                    })()}
+                    {selectedNotification.isGlobal && (
+                      <span className="px-2 py-1 bg-primary-500/20 text-primary-400 text-xs rounded-lg">
+                        全体公開
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-gray-400 whitespace-pre-wrap">{selectedNotification.content}</p>
+                </div>
+              )}
 
               {/* Attachments section */}
               <div>
