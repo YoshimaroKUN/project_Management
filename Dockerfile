@@ -23,9 +23,6 @@ ENV NODE_ENV=production
 
 RUN npm run build
 
-# シードファイルをJavaScriptにコンパイル
-RUN npx tsc prisma/seed.ts --outDir prisma --esModuleInterop --skipLibCheck || echo "Seed compile skipped"
-
 # 本番環境
 FROM base AS runner
 WORKDIR /app
