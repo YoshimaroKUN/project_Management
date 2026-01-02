@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '認証が必要です' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const includeAttachments = searchParams.get('includeAttachments') === 'true'
+
     const notifications = await prisma.notification.findMany({
       where: {
         OR: [
@@ -18,6 +21,10 @@ export async function GET(request: NextRequest) {
           { isGlobal: true },
         ],
       },
+      include: includeAttachments ? {
+        attachments: true,
+        links: true,
+      } : undefined,
       orderBy: { createdAt: 'desc' },
       take: 50,
     })

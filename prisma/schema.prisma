@@ -85,6 +85,8 @@ model Notification {
   isGlobal  Boolean  @default(false)
   createdAt DateTime @default(now())
   readBy    NotificationRead[]
+  attachments NotificationAttachment[]
+  links     NotificationLink[]
 }
 
 model NotificationRead {
@@ -95,6 +97,29 @@ model NotificationRead {
   createdAt      DateTime     @default(now())
 
   @@unique([notificationId, userId])
+}
+
+// お知らせの添付ファイル（PDF等）
+model NotificationAttachment {
+  id             String       @id @default(cuid())
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  filename       String       // 元のファイル名
+  filepath       String       // 保存先パス
+  mimetype       String       // ファイルタイプ
+  size           Int          // ファイルサイズ（バイト）
+  textContent    String?      // PDFから抽出したテキスト（AI用）
+  createdAt      DateTime     @default(now())
+}
+
+// お知らせのリンク
+model NotificationLink {
+  id             String       @id @default(cuid())
+  notificationId String
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  title          String       // リンクの表示名
+  url            String       // URL
+  createdAt      DateTime     @default(now())
 }
 
 model MapMarker {

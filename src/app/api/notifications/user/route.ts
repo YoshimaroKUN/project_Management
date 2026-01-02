@@ -11,6 +11,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const includeAttachments = searchParams.get('includeAttachments') === 'true'
+
     // グローバル通知と個人宛通知を取得
     const notifications = await prisma.notification.findMany({
       where: {
@@ -23,6 +26,10 @@ export async function GET(request: NextRequest) {
         readBy: {
           where: { userId: session.user.id },
         },
+        ...(includeAttachments && {
+          attachments: true,
+          links: true,
+        }),
       },
       orderBy: { createdAt: 'desc' },
     })
@@ -36,6 +43,8 @@ export async function GET(request: NextRequest) {
       isGlobal: notif.isGlobal,
       createdAt: notif.createdAt,
       isRead: notif.readBy.length > 0, // このユーザーが既読にしたか
+      attachments: 'attachments' in notif ? notif.attachments : undefined,
+      links: 'links' in notif ? notif.links : undefined,
     }))
 
     return NextResponse.json({ notifications: notificationsWithReadStatus })

@@ -67,8 +67,12 @@ async function getUserContext(userId: string) {
 async function getNotificationsContext() {
   const notifications = await prisma.notification.findMany({
     where: { isGlobal: true },
+    include: {
+      attachments: true,
+      links: true,
+    },
     orderBy: { createdAt: 'desc' },
-    take: 5,
+    take: 10,
   })
 
   if (notifications.length === 0) return 'お知らせはありません。'
@@ -77,7 +81,24 @@ async function getNotificationsContext() {
   for (const notif of notifications) {
     const typeLabel = notif.type === 'error' ? '🚨緊急' : notif.type === 'warning' ? '⚠️警告' : notif.type === 'success' ? '✅完了' : 'ℹ️情報'
     const date = new Date(notif.createdAt).toLocaleDateString('ja-JP')
-    context += `- ${typeLabel} [${date}] ${notif.title}\n  ${notif.content}\n`
+    context += `\n━━━ ${typeLabel} [${date}] ${notif.title} ━━━\n`
+    context += `${notif.content}\n`
+    
+    // 添付ファイルの内容があれば追加
+    if (notif.attachments && notif.attachments.length > 0) {
+      for (const attachment of notif.attachments) {
+        if (attachment.textContent) {
+          context += `\n【添付: ${attachment.filename}】\n${attachment.textContent}\n`
+        } else {
+          context += `📎 添付ファイル: ${attachment.filename}\n`
+        }
+      }
+    }
+    
+    // リンクがあれば追加
+    if (notif.links && notif.links.length > 0) {
+      context += `🔗 参考リンク: ${notif.links.map(l => l.title).join(', ')}\n`
+    }
   }
   
   return context

@@ -10,9 +10,29 @@ import {
   CheckCircle,
   Check,
   BellRing,
+  Paperclip,
+  ExternalLink,
+  FileText,
+  Image as ImageIcon,
+  File,
+  Link as LinkIcon,
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ja } from 'date-fns/locale'
+
+interface Attachment {
+  id: string
+  filename: string
+  filepath: string
+  mimetype: string
+  size: number
+}
+
+interface NotificationLink {
+  id: string
+  title: string
+  url: string
+}
 
 interface Notification {
   id: string
@@ -22,6 +42,8 @@ interface Notification {
   isRead: boolean
   isGlobal: boolean
   createdAt: string
+  attachments?: Attachment[]
+  links?: NotificationLink[]
 }
 
 const typeConfig: { [key: string]: { icon: any; color: string; bgColor: string; label: string } } = {
@@ -51,7 +73,7 @@ export default function NewsPage() {
   const fetchNotifications = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/notifications/user')
+      const response = await fetch('/api/notifications/user?includeAttachments=true')
       if (response.ok) {
         const data = await response.json()
         setNotifications(data.notifications)
@@ -61,6 +83,18 @@ export default function NewsPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getFileIcon = (mimetype: string) => {
+    if (mimetype.startsWith('image/')) return ImageIcon
+    if (mimetype === 'application/pdf') return FileText
+    return File
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   const markAsRead = async (id: string) => {
@@ -223,6 +257,49 @@ export default function NewsPage() {
                     <p className="text-gray-400 text-sm mb-2 whitespace-pre-wrap">
                       {notification.content}
                     </p>
+
+                    {/* Attachments */}
+                    {notification.attachments && notification.attachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {notification.attachments.map((attachment) => {
+                          const AttachmentIcon = getFileIcon(attachment.mimetype)
+                          return (
+                            <a
+                              key={attachment.id}
+                              href={attachment.filepath}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-xs transition-colors"
+                            >
+                              <AttachmentIcon className="w-4 h-4" />
+                              <span className="truncate max-w-[150px]">{attachment.filename}</span>
+                              <span className="text-blue-400/60">({formatFileSize(attachment.size)})</span>
+                            </a>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* Links */}
+                    {notification.links && notification.links.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {notification.links.map((link) => (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg text-xs transition-colors"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            <span>{link.title}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+
                     <p className="text-xs text-gray-500">
                       {formatDistanceToNow(new Date(notification.createdAt), {
                         addSuffix: true,
