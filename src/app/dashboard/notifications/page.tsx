@@ -24,6 +24,9 @@ import {
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
+// ファイルパスをAPIルート経由に変換
+const getFileUrl = (filepath: string) => `/api/files${filepath}`
+
 interface Attachment {
   id: string
   filename: string
@@ -433,7 +436,7 @@ export default function NotificationsPage() {
                           <FileIcon className="w-5 h-5 text-blue-400" />
                           <div className="flex-1 min-w-0">
                             <a
-                              href={attachment.filepath}
+                              href={getFileUrl(attachment.filepath)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-sm text-white hover:text-blue-400 truncate block"
@@ -445,7 +448,7 @@ export default function NotificationsPage() {
                             </span>
                           </div>
                           <a
-                            href={attachment.filepath}
+                            href={getFileUrl(attachment.filepath)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1 hover:bg-white/10 rounded"

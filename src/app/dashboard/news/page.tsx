@@ -22,6 +22,9 @@ import {
 import { format, formatDistanceToNow } from 'date-fns'
 import { ja } from 'date-fns/locale'
 
+// ファイルパスをAPIルート経由に変換
+const getFileUrl = (filepath: string) => `/api/files${filepath}`
+
 interface Attachment {
   id: string
   filename: string
@@ -368,7 +371,7 @@ export default function NewsPage() {
                       return (
                         <a
                           key={attachment.id}
-                          href={attachment.filepath}
+                          href={getFileUrl(attachment.filepath)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
