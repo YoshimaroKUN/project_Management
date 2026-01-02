@@ -35,6 +35,9 @@ RUN apk add --no-cache openssl
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
+# publicディレクトリを作成（存在しない場合に備えて）
+RUN mkdir -p /app/public/avatars
+
 # 必要なファイルをコピー
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
