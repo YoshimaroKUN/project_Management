@@ -15,7 +15,9 @@ import {
   FileText,
   Image as ImageIcon,
   File,
-  Link as LinkIcon,
+  X,
+  Download,
+  Calendar,
 } from 'lucide-react'
 import { format, formatDistanceToNow } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -46,11 +48,11 @@ interface Notification {
   links?: NotificationLink[]
 }
 
-const typeConfig: { [key: string]: { icon: any; color: string; bgColor: string; label: string } } = {
-  info: { icon: Info, color: 'text-blue-400', bgColor: 'bg-blue-500/10', label: '情報' },
-  warning: { icon: AlertTriangle, color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', label: '警告' },
-  error: { icon: AlertCircle, color: 'text-red-400', bgColor: 'bg-red-500/10', label: '緊急' },
-  success: { icon: CheckCircle, color: 'text-green-400', bgColor: 'bg-green-500/10', label: '完了' },
+const typeConfig: { [key: string]: { icon: any; color: string; bgColor: string; label: string; borderColor: string } } = {
+  info: { icon: Info, color: 'text-blue-400', bgColor: 'bg-blue-500/10', label: '情報', borderColor: 'border-blue-500' },
+  warning: { icon: AlertTriangle, color: 'text-yellow-400', bgColor: 'bg-yellow-500/10', label: '警告', borderColor: 'border-yellow-500' },
+  error: { icon: AlertCircle, color: 'text-red-400', bgColor: 'bg-red-500/10', label: '緊急', borderColor: 'border-red-500' },
+  success: { icon: CheckCircle, color: 'text-green-400', bgColor: 'bg-green-500/10', label: '完了', borderColor: 'border-green-500' },
 }
 
 export default function NewsPage() {
@@ -59,12 +61,12 @@ export default function NewsPage() {
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'unread'>('all')
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null)
 
   useEffect(() => {
     if (status === 'authenticated') {
       fetchNotifications()
     }
-    // ブラウザ通知の許可状態を確認
     if (typeof Notification !== 'undefined') {
       setNotificationPermission(Notification.permission)
     }
@@ -106,6 +108,9 @@ export default function NewsPage() {
         setNotifications((prev) =>
           prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
         )
+        if (selectedNotification?.id === id) {
+          setSelectedNotification({ ...selectedNotification, isRead: true })
+        }
       }
     } catch (error) {
       console.error('Failed to mark as read:', error)
@@ -135,6 +140,13 @@ export default function NewsPage() {
           icon: '/avatars/default.png',
         })
       }
+    }
+  }
+
+  const openNotification = (notification: Notification) => {
+    setSelectedNotification(notification)
+    if (!notification.isRead) {
+      markAsRead(notification.id)
     }
   }
 
@@ -169,7 +181,6 @@ export default function NewsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Browser Notification Toggle */}
           {typeof Notification !== 'undefined' && notificationPermission !== 'granted' && (
             <button
               onClick={requestNotificationPermission}
@@ -217,7 +228,7 @@ export default function NewsPage() {
       </div>
 
       {/* Notifications List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredNotifications.length === 0 ? (
           <div className="glass-card rounded-2xl p-12 text-center">
             <Bell className="w-16 h-16 text-gray-600 mx-auto mb-4" />
@@ -229,85 +240,54 @@ export default function NewsPage() {
           filteredNotifications.map((notification) => {
             const config = typeConfig[notification.type] || typeConfig.info
             const Icon = config.icon
+            const hasAttachments = (notification.attachments?.length ?? 0) > 0
+            const hasLinks = (notification.links?.length ?? 0) > 0
 
             return (
               <div
                 key={notification.id}
-                className={`glass-card rounded-2xl p-6 transition-all hover:bg-white/10 cursor-pointer ${
-                  !notification.isRead ? 'border-l-4 border-l-primary-500' : ''
+                className={`glass-card rounded-2xl p-5 transition-all hover:bg-white/10 hover:scale-[1.01] cursor-pointer ${
+                  !notification.isRead ? 'border-l-4 ' + config.borderColor : ''
                 }`}
-                onClick={() => !notification.isRead && markAsRead(notification.id)}
+                onClick={() => openNotification(notification)}
               >
                 <div className="flex items-start gap-4">
-                  <div className={`w-10 h-10 rounded-xl ${config.bgColor} flex items-center justify-center flex-shrink-0`}>
-                    <Icon className={`w-5 h-5 ${config.color}`} />
+                  <div className={`w-12 h-12 rounded-xl ${config.bgColor} flex items-center justify-center flex-shrink-0`}>
+                    <Icon className={`w-6 h-6 ${config.color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h3 className={`font-semibold ${!notification.isRead ? 'text-white' : 'text-gray-300'}`}>
+                      <h3 className={`font-semibold text-lg ${!notification.isRead ? 'text-white' : 'text-gray-300'}`}>
                         {notification.title}
                       </h3>
                       <span className={`text-xs px-2 py-0.5 rounded-full ${config.bgColor} ${config.color}`}>
                         {config.label}
                       </span>
                       {!notification.isRead && (
-                        <span className="w-2 h-2 bg-primary-500 rounded-full" />
+                        <span className="w-2 h-2 bg-primary-500 rounded-full animate-pulse" />
                       )}
                     </div>
-                    <p className="text-gray-400 text-sm mb-2 whitespace-pre-wrap">
+                    <p className="text-gray-400 text-sm mb-2 line-clamp-2">
                       {notification.content}
                     </p>
-
-                    {/* Attachments */}
-                    {notification.attachments && notification.attachments.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {notification.attachments.map((attachment) => {
-                          const AttachmentIcon = getFileIcon(attachment.mimetype)
-                          return (
-                            <a
-                              key={attachment.id}
-                              href={attachment.filepath}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded-lg text-xs transition-colors"
-                            >
-                              <AttachmentIcon className="w-4 h-4" />
-                              <span className="truncate max-w-[150px]">{attachment.filename}</span>
-                              <span className="text-blue-400/60">({formatFileSize(attachment.size)})</span>
-                            </a>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    {/* Links */}
-                    {notification.links && notification.links.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {notification.links.map((link) => (
-                          <a
-                            key={link.id}
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg text-xs transition-colors"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                            <span>{link.title}</span>
-                          </a>
-                        ))}
-                      </div>
-                    )}
-
-                    <p className="text-xs text-gray-500">
-                      {formatDistanceToNow(new Date(notification.createdAt), {
-                        addSuffix: true,
-                        locale: ja,
-                      })}
-                      {' · '}
-                      {format(new Date(notification.createdAt), 'M月d日 HH:mm', { locale: ja })}
-                    </p>
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {format(new Date(notification.createdAt), 'M月d日 HH:mm', { locale: ja })}
+                      </span>
+                      {hasAttachments && (
+                        <span className="flex items-center gap-1 text-blue-400">
+                          <Paperclip className="w-3 h-3" />
+                          {notification.attachments?.length}件の添付
+                        </span>
+                      )}
+                      {hasLinks && (
+                        <span className="flex items-center gap-1 text-green-400">
+                          <ExternalLink className="w-3 h-3" />
+                          {notification.links?.length}件のリンク
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -315,6 +295,139 @@ export default function NewsPage() {
           })
         )}
       </div>
+
+      {/* Detail Modal */}
+      {selectedNotification && (
+        <div 
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedNotification(null)}
+        >
+          <div 
+            className="glass-card w-full max-w-2xl max-h-[90vh] overflow-hidden animate-fade-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            {(() => {
+              const config = typeConfig[selectedNotification.type] || typeConfig.info
+              const Icon = config.icon
+              return (
+                <div className={`p-6 border-b border-white/10 ${config.bgColor}`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0`}>
+                        <Icon className={`w-7 h-7 ${config.color}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs px-2 py-0.5 rounded-full bg-white/20 ${config.color}`}>
+                            {config.label}
+                          </span>
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">
+                          {selectedNotification.title}
+                        </h2>
+                        <p className="text-sm text-gray-300 mt-1 flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          {format(new Date(selectedNotification.createdAt), 'yyyy年M月d日 HH:mm', { locale: ja })}
+                          <span className="text-gray-500">
+                            ({formatDistanceToNow(new Date(selectedNotification.createdAt), { addSuffix: true, locale: ja })})
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSelectedNotification(null)}
+                      className="p-2 hover:bg-white/10 rounded-xl transition-colors"
+                    >
+                      <X className="w-6 h-6 text-gray-400" />
+                    </button>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {/* Content */}
+              <div className="mb-6">
+                <p className="text-gray-200 text-base leading-relaxed whitespace-pre-wrap">
+                  {selectedNotification.content}
+                </p>
+              </div>
+
+              {/* Attachments */}
+              {selectedNotification.attachments && selectedNotification.attachments.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                    <Paperclip className="w-5 h-5" />
+                    添付ファイル
+                  </h3>
+                  <div className="space-y-2">
+                    {selectedNotification.attachments.map((attachment) => {
+                      const AttachmentIcon = getFileIcon(attachment.mimetype)
+                      return (
+                        <a
+                          key={attachment.id}
+                          href={attachment.filepath}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
+                        >
+                          <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                            <AttachmentIcon className="w-6 h-6 text-blue-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white font-medium truncate group-hover:text-blue-400 transition-colors">
+                              {attachment.filename}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {formatFileSize(attachment.size)}
+                            </p>
+                          </div>
+                          <Download className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Links */}
+              {selectedNotification.links && selectedNotification.links.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                    <ExternalLink className="w-5 h-5" />
+                    関連リンク
+                  </h3>
+                  <div className="space-y-2">
+                    {selectedNotification.links.map((link) => (
+                      <a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-colors group"
+                      >
+                        <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                          <ExternalLink className="w-6 h-6 text-green-400" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-medium group-hover:text-green-400 transition-colors">
+                            {link.title}
+                          </p>
+                          <p className="text-sm text-gray-500 truncate">
+                            {link.url}
+                          </p>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
