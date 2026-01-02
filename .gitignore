@@ -41,3 +41,4 @@ prisma/dev.db-journal
 # IDE
 .idea
 .vscode
+本番環境メモ.txt

@@ -18,6 +18,7 @@ import {
   User,
   ChevronDown,
   Settings,
+  Shield,
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -31,6 +32,7 @@ const navigation = [
 ]
 
 const adminNavigation = [
+  { name: '管理ダッシュボード', href: '/dashboard/admin', icon: Shield },
   { name: 'お知らせ管理', href: '/dashboard/notifications', icon: Bell },
   { name: 'マップ管理', href: '/dashboard/map', icon: Map },
 ]

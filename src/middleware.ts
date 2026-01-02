@@ -6,10 +6,24 @@ export default withAuth(
     const token = req.nextauth.token
     const pathname = req.nextUrl.pathname
 
-    // Check admin routes
-    const adminRoutes = ['/dashboard/notifications', '/dashboard/map']
+    // Check admin routes - これらのルートは管理者のみアクセス可能
+    const adminRoutes = [
+      '/dashboard/admin',
+      '/dashboard/notifications',
+      '/dashboard/map',
+      '/api/admin',
+    ]
+    
     if (adminRoutes.some((route) => pathname.startsWith(route))) {
       if (token?.role !== 'ADMIN') {
+        // APIの場合は403を返す
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json(
+            { error: '管理者権限が必要です' },
+            { status: 403 }
+          )
+        }
+        // ページの場合はダッシュボードにリダイレクト
         return NextResponse.redirect(new URL('/dashboard', req.url))
       }
     }
@@ -24,5 +38,5 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/dashboard/:path*', '/api/admin/:path*'],
 }

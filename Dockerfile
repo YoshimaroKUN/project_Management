@@ -23,6 +23,9 @@ ENV NODE_ENV=production
 
 RUN npm run build
 
+# シードファイルをJavaScriptにコンパイル
+RUN npx tsc prisma/seed.ts --outDir prisma --esModuleInterop --skipLibCheck || echo "Seed compile skipped"
+
 # 本番環境
 FROM base AS runner
 WORKDIR /app
@@ -49,11 +52,18 @@ COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# 起動スクリプトを作成
+# シード用のbcryptjsをコピー
+COPY --from=deps /app/node_modules/bcryptjs ./node_modules/bcryptjs
+
+# 起動スクリプトを作成（シード実行を含む）
 COPY --from=builder /app/prisma ./prisma
 RUN echo '#!/bin/sh' > /app/start.sh && \
     echo 'cd /app' >> /app/start.sh && \
+    echo 'echo "Running database migrations..."' >> /app/start.sh && \
     echo 'node node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss 2>/dev/null || true' >> /app/start.sh && \
+    echo 'echo "Seeding database..."' >> /app/start.sh && \
+    echo 'node prisma/seed.js 2>/dev/null || echo "Seed skipped or already done"' >> /app/start.sh && \
+    echo 'echo "Starting server..."' >> /app/start.sh && \
     echo 'exec node server.js' >> /app/start.sh && \
     chmod +x /app/start.sh
 
