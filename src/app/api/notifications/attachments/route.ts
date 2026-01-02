@@ -47,9 +47,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'お知らせIDが必要です' }, { status: 400 })
     }
 
-    // ファイルタイプの検証
-    const validTypes = [
+    // ファイルタイプの検証（MIMEタイプと拡張子の両方で判定）
+    const validMimeTypes = [
       'application/pdf',
+      'application/x-pdf',
       'image/jpeg',
       'image/png',
       'image/gif',
@@ -58,11 +59,21 @@ export async function POST(request: NextRequest) {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain',
     ]
     
-    if (!validTypes.includes(file.type)) {
+    const validExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.doc', '.docx', '.xls', '.xlsx', '.txt']
+    const fileExt = '.' + (file.name.split('.').pop()?.toLowerCase() || '')
+    
+    const isValidMime = validMimeTypes.includes(file.type)
+    const isValidExt = validExtensions.includes(fileExt)
+    
+    // デバッグ用ログ
+    console.log('File upload:', { name: file.name, type: file.type, ext: fileExt, isValidMime, isValidExt })
+    
+    if (!isValidMime && !isValidExt) {
       return NextResponse.json(
-        { error: '対応しているファイル形式: PDF, 画像, Word, Excel' },
+        { error: `対応しているファイル形式: PDF, 画像, Word, Excel, テキスト (受信: ${file.type})` },
         { status: 400 }
       )
     }

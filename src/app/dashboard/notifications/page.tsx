@@ -415,7 +415,7 @@ export default function NotificationsPage() {
                       type="file"
                       className="hidden"
                       onChange={handleFileUpload}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
+                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt,application/pdf"
                       disabled={uploading}
                     />
                   </label>
