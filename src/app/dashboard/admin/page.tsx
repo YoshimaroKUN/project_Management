@@ -13,6 +13,8 @@ import {
   Calendar,
   TrendingUp,
   Activity,
+  RefreshCw,
+  FileText,
 } from 'lucide-react'
 
 interface Stats {
@@ -29,6 +31,8 @@ export default function AdminDashboard() {
   const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [reprocessing, setReprocessing] = useState(false)
+  const [reprocessResult, setReprocessResult] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -50,6 +54,26 @@ export default function AdminDashboard() {
       console.error('Failed to load stats:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleReprocessAttachments = async () => {
+    setReprocessing(true)
+    setReprocessResult(null)
+    try {
+      const response = await fetch('/api/admin/reprocess-attachments', {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setReprocessResult(`✅ ${data.message}`)
+      } else {
+        setReprocessResult(`❌ ${data.error}`)
+      }
+    } catch (error) {
+      setReprocessResult('❌ 処理中にエラーが発生しました')
+    } finally {
+      setReprocessing(false)
     }
   }
 
@@ -177,6 +201,37 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* System Tools */}
+      <div className="glass-card p-6">
+        <h2 className="text-xl font-semibold text-white mb-4 flex items-center gap-2">
+          <FileText className="w-5 h-5" />
+          システムツール
+        </h2>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+            <div>
+              <p className="text-white font-medium">添付ファイル再処理</p>
+              <p className="text-sm text-gray-400">
+                PDFなどの添付ファイルからテキストを再抽出します（AIが内容を参照できるようになります）
+              </p>
+            </div>
+            <button
+              onClick={handleReprocessAttachments}
+              disabled={reprocessing}
+              className="btn-secondary flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${reprocessing ? 'animate-spin' : ''}`} />
+              {reprocessing ? '処理中...' : '再処理'}
+            </button>
+          </div>
+          {reprocessResult && (
+            <div className="p-3 bg-white/5 rounded-lg">
+              <p className="text-sm text-gray-300">{reprocessResult}</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
