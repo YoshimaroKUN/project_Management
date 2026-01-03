@@ -11,6 +11,8 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - DIFY_API_URL=${DIFY_API_URL:-https://api.dify.ai/v1}
       - DIFY_API_KEY=${DIFY_API_KEY}
+      - DIFY_DATASET_API_KEY=${DIFY_DATASET_API_KEY}
+      - DIFY_DATASET_ID=${DIFY_DATASET_ID}
     volumes:
       # データベースを永続化
       - ./data:/app/data
