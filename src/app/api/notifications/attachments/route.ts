@@ -5,20 +5,30 @@ import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { prisma } from '@/lib/prisma'
 
-// PDFからテキストを抽出する簡易関数
-// 本格的な実装にはpdf-parseなどのライブラリを使用
+// PDFからテキストを抽出する関数
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
-  // PDFのテキストを簡易的に抽出（バイナリから文字列を探す）
-  // 本番では pdf-parse ライブラリを使用することを推奨
   try {
-    const text = buffer.toString('utf-8')
-    // PDFストリームから読める文字列を抽出
-    const matches = text.match(/[\x20-\x7E\u3000-\u9FFF\uFF00-\uFFEF]+/g)
-    if (matches) {
-      return matches.join(' ').slice(0, 10000) // 最大10000文字
-    }
+    // pdf-parseを動的にインポート（Dockerビルド対応）
+    const pdfParse = (await import('pdf-parse')).default
+    const data = await pdfParse(buffer)
+    
+    // テキストを取得（最大20000文字）
+    const text = data.text || ''
+    console.log(`PDF extracted: ${text.length} characters`)
+    return text.slice(0, 20000)
   } catch (e) {
     console.error('PDF text extraction error:', e)
+    
+    // フォールバック: 簡易抽出を試みる
+    try {
+      const text = buffer.toString('utf-8')
+      const matches = text.match(/[\x20-\x7E\u3000-\u9FFF\uFF00-\uFFEF]+/g)
+      if (matches) {
+        return matches.join(' ').slice(0, 10000)
+      }
+    } catch (fallbackError) {
+      console.error('Fallback extraction failed:', fallbackError)
+    }
   }
   return ''
 }
@@ -110,10 +120,18 @@ export async function POST(request: NextRequest) {
     // ファイルを保存
     await writeFile(filepath, buffer)
 
-    // PDFの場合はテキストを抽出
+    // ファイルの種類に応じてテキストを抽出
     let textContent = ''
-    if (file.type === 'application/pdf') {
+    const isPDF = file.type === 'application/pdf' || file.type === 'application/x-pdf' || fileExt === '.pdf'
+    const isText = file.type === 'text/plain' || fileExt === '.txt'
+    
+    if (isPDF) {
       textContent = await extractTextFromPDF(buffer)
+      console.log(`PDF text extracted: ${textContent.length} chars from ${file.name}`)
+    } else if (isText) {
+      // テキストファイルはそのまま読み込み
+      textContent = buffer.toString('utf-8').slice(0, 20000)
+      console.log(`Text file read: ${textContent.length} chars from ${file.name}`)
     }
 
     // データベースに保存
