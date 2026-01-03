@@ -242,12 +242,9 @@ export async function POST(request: NextRequest) {
     // Build context based on message content
     let fullContext = ''
     
-    // 1. Check for schedule/task related keywords
-    const scheduleKeywords = ['予定', '課題', 'タスク', 'スケジュール', '今日', '明日', '今週', 'やること', '締め切り', '期限']
-    if (scheduleKeywords.some(keyword => message.includes(keyword))) {
-      const userContext = await getUserContext(session.user.id)
-      if (userContext) fullContext += userContext + '\n'
-    }
+    // 1. 常にユーザーの課題・予定を取得（直近1週間）
+    const userContext = await getUserContext(session.user.id)
+    if (userContext) fullContext += userContext + '\n'
 
     // 2. Check for notification related keywords (only when explicitly asked)
     const notificationKeywords = ['お知らせ', '通知', 'ニュース', '連絡', '告知', '情報', '奨学', 'pdf', '書類', '添付']
@@ -263,19 +260,35 @@ export async function POST(request: NextRequest) {
       const mapResult = await getMapContext(message)
       if (mapResult.context) fullContext += mapResult.context
       matchedMarkers = mapResult.markers
+    } else {
+      // 場所キーワードがなくても、マーカー名がメッセージに含まれているかチェック
+      const mapResult = await getMapContext(message)
+      if (mapResult.markers.length > 0) {
+        fullContext += mapResult.context
+        matchedMarkers = mapResult.markers
+      }
     }
 
     console.log('Context included:', fullContext ? 'Yes' : 'No')
     if (fullContext) console.log('Context preview:', fullContext.substring(0, 200) + '...')
 
-    // Prepare the query with context
-    const queryWithContext = fullContext 
-      ? `以下は参考情報です：\n${fullContext}\n\nユーザーの質問: ${message}`
-      : message
+    // Prepare the query with context - より明確に指示を追加
+    let queryWithContext = message
+    if (fullContext) {
+      queryWithContext = `【重要：以下のデータベース情報を必ず参照して回答してください】
+
+${fullContext}
+
+【ユーザーの質問】
+${message}
+
+※ 上記のデータベース情報に基づいて回答してください。情報がない場合のみ「登録されていません」と回答してください。`
+    }
 
     // Log for debugging
     console.log('Dify API URL:', `${DIFY_API_URL}/chat-messages`)
     console.log('Dify API Key (first 10 chars):', DIFY_API_KEY.substring(0, 10) + '...')
+    console.log('Query length:', queryWithContext.length)
 
     // Call Dify API
     const difyResponse = await fetch(`${DIFY_API_URL}/chat-messages`, {
@@ -287,7 +300,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({
         inputs: {
           name: session.user.name || 'ユーザー',
-          user_context: fullContext,
+          user_context: fullContext || 'なし',
         },
         query: queryWithContext,
         response_mode: 'blocking',
