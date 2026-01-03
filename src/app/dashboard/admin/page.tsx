@@ -9,15 +9,12 @@ import {
   Users,
   Bell,
   Map,
-  MessageSquare,
   Calendar,
   TrendingUp,
   Activity,
-  RefreshCw,
   FileText,
   Cloud,
   Upload,
-  CheckCircle,
 } from 'lucide-react'
 
 interface Stats {
@@ -44,8 +41,6 @@ export default function AdminDashboard() {
   const router = useRouter()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [reprocessing, setReprocessing] = useState(false)
-  const [reprocessResult, setReprocessResult] = useState<string | null>(null)
   const [difyStatus, setDifyStatus] = useState<DifyStatus | null>(null)
   const [difyUploading, setDifyUploading] = useState(false)
   const [difyResult, setDifyResult] = useState<string | null>(null)
@@ -107,29 +102,6 @@ export default function AdminDashboard() {
       setDifyResult('❌ アップロード中にエラーが発生しました')
     } finally {
       setDifyUploading(false)
-    }
-  }
-
-  const handleReprocessAttachments = async (force = false) => {
-    setReprocessing(true)
-    setReprocessResult(null)
-    try {
-      const url = force 
-        ? '/api/admin/reprocess-attachments?force=true' 
-        : '/api/admin/reprocess-attachments'
-      const response = await fetch(url, {
-        method: 'POST',
-      })
-      const data = await response.json()
-      if (response.ok) {
-        setReprocessResult(`✅ ${data.message}`)
-      } else {
-        setReprocessResult(`❌ ${data.error}`)
-      }
-    } catch (error) {
-      setReprocessResult('❌ 処理中にエラーが発生しました')
-    } finally {
-      setReprocessing(false)
     }
   }
 
@@ -383,41 +355,6 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
-
-          {/* 添付ファイル再処理 */}
-          <div className="p-4 bg-white/5 rounded-lg">
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <p className="text-white font-medium">添付ファイル再処理</p>
-                <p className="text-sm text-gray-400">
-                  PDFなどの添付ファイルからテキストを再抽出します（AIが内容を参照できるようになります）
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleReprocessAttachments(false)}
-                disabled={reprocessing}
-                className="btn-secondary flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${reprocessing ? 'animate-spin' : ''}`} />
-                {reprocessing ? '処理中...' : '未処理のみ'}
-              </button>
-              <button
-                onClick={() => handleReprocessAttachments(true)}
-                disabled={reprocessing}
-                className="btn-primary flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${reprocessing ? 'animate-spin' : ''}`} />
-                {reprocessing ? '処理中...' : 'すべて強制再処理'}
-              </button>
-            </div>
-          </div>
-          {reprocessResult && (
-            <div className="p-3 bg-white/5 rounded-lg">
-              <p className="text-sm text-gray-300">{reprocessResult}</p>
-            </div>
-          )}
         </div>
       </div>
     </div>
