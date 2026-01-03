@@ -64,7 +64,7 @@ async function getUserContext(userId: string) {
 }
 
 // Helper function to get notifications for explicit request (keyword detection only)
-async function getNotificationsContext() {
+async function getNotificationsContext(query: string) {
   const notifications = await prisma.notification.findMany({
     where: { isGlobal: true },
     include: {
@@ -77,28 +77,60 @@ async function getNotificationsContext() {
 
   if (notifications.length === 0) return 'お知らせはありません。'
 
+  // ユーザーの質問に関連するキーワードを抽出
+  const queryLower = query.toLowerCase()
+  
   let context = '【お知らせ一覧】\n'
+  let totalLength = 0
+  const MAX_CONTEXT_LENGTH = 2500 // Difyの制限より少し余裕を持たせる
+  
   for (const notif of notifications) {
     const typeLabel = notif.type === 'error' ? '🚨緊急' : notif.type === 'warning' ? '⚠️警告' : notif.type === 'success' ? '✅完了' : 'ℹ️情報'
     const date = new Date(notif.createdAt).toLocaleDateString('ja-JP')
-    context += `\n━━━ ${typeLabel} [${date}] ${notif.title} ━━━\n`
-    context += `${notif.content}\n`
     
-    // 添付ファイルの内容があれば追加
+    let notifContext = `\n━━━ ${typeLabel} [${date}] ${notif.title} ━━━\n`
+    notifContext += `${notif.content}\n`
+    
+    // 添付ファイルの内容があれば追加（質問に関連する場合は優先）
     if (notif.attachments && notif.attachments.length > 0) {
       for (const attachment of notif.attachments) {
         if (attachment.textContent) {
-          context += `\n【添付: ${attachment.filename}】\n${attachment.textContent}\n`
+          // 質問に関連するお知らせ/添付の場合は内容を含める
+          const isRelevant = notif.title.toLowerCase().includes(queryLower) ||
+            notif.content.toLowerCase().includes(queryLower) ||
+            attachment.filename.toLowerCase().includes(queryLower) ||
+            queryLower.includes('奨学') || queryLower.includes('pdf') || 
+            queryLower.includes('添付') || queryLower.includes('書類')
+          
+          if (isRelevant) {
+            // 関連する場合は内容を含める（ただし制限あり）
+            const maxAttachmentLength = Math.min(attachment.textContent.length, 1500)
+            notifContext += `\n【添付: ${attachment.filename}】\n${attachment.textContent.slice(0, maxAttachmentLength)}\n`
+            if (attachment.textContent.length > maxAttachmentLength) {
+              notifContext += '...(省略)\n'
+            }
+          } else {
+            notifContext += `📎 添付ファイル: ${attachment.filename}（詳細は「${attachment.filename}について教えて」と聞いてください）\n`
+          }
         } else {
-          context += `📎 添付ファイル: ${attachment.filename}\n`
+          notifContext += `📎 添付ファイル: ${attachment.filename}\n`
         }
       }
     }
     
     // リンクがあれば追加
     if (notif.links && notif.links.length > 0) {
-      context += `🔗 参考リンク: ${notif.links.map(l => l.title).join(', ')}\n`
+      notifContext += `🔗 参考リンク: ${notif.links.map(l => l.title).join(', ')}\n`
     }
+    
+    // 文字数制限チェック
+    if (totalLength + notifContext.length > MAX_CONTEXT_LENGTH) {
+      context += '\n...(他のお知らせは省略されました)\n'
+      break
+    }
+    
+    context += notifContext
+    totalLength += notifContext.length
   }
   
   return context
@@ -218,9 +250,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Check for notification related keywords (only when explicitly asked)
-    const notificationKeywords = ['お知らせ', '通知', 'ニュース', '連絡', '告知', '情報']
+    const notificationKeywords = ['お知らせ', '通知', 'ニュース', '連絡', '告知', '情報', '奨学', 'pdf', '書類', '添付']
     if (notificationKeywords.some(keyword => message.includes(keyword))) {
-      const notifContext = await getNotificationsContext()
+      const notifContext = await getNotificationsContext(message)
       if (notifContext) fullContext += notifContext + '\n'
     }
 
