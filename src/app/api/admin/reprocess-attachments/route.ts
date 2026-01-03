@@ -42,20 +42,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '管理者権限が必要です' }, { status: 403 })
     }
 
-    // textContentが空の添付ファイルを取得
-    const attachments = await prisma.notificationAttachment.findMany({
-      where: {
-        OR: [
-          { textContent: null },
-          { textContent: '' },
-        ],
-        mimetype: {
-          in: ['application/pdf', 'application/x-pdf', 'text/plain'],
-        },
-      },
-    })
+    // クエリパラメータで強制再処理を判定
+    const { searchParams } = new URL(request.url)
+    const forceAll = searchParams.get('force') === 'true'
 
-    console.log(`Found ${attachments.length} attachments to reprocess`)
+    // 対象の添付ファイルを取得
+    let attachments
+    if (forceAll) {
+      // すべてのPDF/テキストファイルを再処理
+      attachments = await prisma.notificationAttachment.findMany({
+        where: {
+          OR: [
+            { mimetype: { contains: 'pdf' } },
+            { mimetype: 'text/plain' },
+            { filename: { endsWith: '.pdf' } },
+            { filename: { endsWith: '.txt' } },
+          ],
+        },
+      })
+    } else {
+      // textContentが空の添付ファイルのみ
+      attachments = await prisma.notificationAttachment.findMany({
+        where: {
+          OR: [
+            { textContent: null },
+            { textContent: '' },
+          ],
+        },
+      })
+    }
+
+    console.log(`Found ${attachments.length} attachments to reprocess (force=${forceAll})`)
 
     const results = []
 
@@ -63,14 +80,22 @@ export async function POST(request: NextRequest) {
       try {
         // ファイルを読み込み
         const filePath = join(process.cwd(), 'public', attachment.filepath)
+        console.log(`Processing: ${attachment.filename}, path: ${filePath}, mime: ${attachment.mimetype}`)
+        
         const buffer = await readFile(filePath)
         
         let textContent = ''
+        const isPDF = attachment.mimetype.includes('pdf') || attachment.filename.toLowerCase().endsWith('.pdf')
+        const isText = attachment.mimetype === 'text/plain' || attachment.filename.toLowerCase().endsWith('.txt')
         
-        if (attachment.mimetype.includes('pdf')) {
+        if (isPDF) {
+          console.log(`Extracting PDF: ${attachment.filename}`)
           textContent = await extractTextFromPDF(buffer)
-        } else if (attachment.mimetype === 'text/plain') {
+        } else if (isText) {
+          console.log(`Reading text: ${attachment.filename}`)
           textContent = buffer.toString('utf-8').slice(0, 20000)
+        } else {
+          console.log(`Skipping unsupported type: ${attachment.filename} (${attachment.mimetype})`)
         }
 
         if (textContent) {
