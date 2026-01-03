@@ -8,7 +8,14 @@ WORKDIR /app
 
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma/
-RUN npm ci
+
+# npmのタイムアウトとリトライを設定
+RUN npm config set fetch-retries 5
+RUN npm config set fetch-retry-mintimeout 20000
+RUN npm config set fetch-retry-maxtimeout 120000
+RUN npm config set fetch-timeout 300000
+
+RUN npm ci || npm ci || npm ci
 RUN npx prisma generate
 
 # ビルドステージ
