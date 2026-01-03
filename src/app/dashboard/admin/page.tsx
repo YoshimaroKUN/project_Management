@@ -15,6 +15,8 @@ import {
   Activity,
   RefreshCw,
   FileText,
+  Cloud,
+  Upload,
 } from 'lucide-react'
 
 interface Stats {
@@ -26,6 +28,16 @@ interface Stats {
   recentUsers: { id: string; name: string; email: string; createdAt: string }[]
 }
 
+interface DifyStatus {
+  isConfigured: boolean
+  datasetId: string | null
+  stats: {
+    total: number
+    uploaded: number
+    pending: number
+  }
+}
+
 export default function AdminDashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -33,6 +45,9 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [reprocessing, setReprocessing] = useState(false)
   const [reprocessResult, setReprocessResult] = useState<string | null>(null)
+  const [difyStatus, setDifyStatus] = useState<DifyStatus | null>(null)
+  const [difyUploading, setDifyUploading] = useState(false)
+  const [difyResult, setDifyResult] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -41,6 +56,7 @@ export default function AdminDashboard() {
       return
     }
     loadStats()
+    loadDifyStatus()
   }, [session, status, router])
 
   const loadStats = async () => {
@@ -54,6 +70,39 @@ export default function AdminDashboard() {
       console.error('Failed to load stats:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadDifyStatus = async () => {
+    try {
+      const response = await fetch('/api/admin/dify-sync')
+      if (response.ok) {
+        const data = await response.json()
+        setDifyStatus(data)
+      }
+    } catch (error) {
+      console.error('Failed to load Dify status:', error)
+    }
+  }
+
+  const handleDifyUpload = async () => {
+    setDifyUploading(true)
+    setDifyResult(null)
+    try {
+      const response = await fetch('/api/admin/dify-sync?all=true', {
+        method: 'POST',
+      })
+      const data = await response.json()
+      if (response.ok) {
+        setDifyResult(`✅ ${data.message}`)
+        loadDifyStatus()
+      } else {
+        setDifyResult(`❌ ${data.error}`)
+      }
+    } catch (error) {
+      setDifyResult('❌ アップロード中にエラーが発生しました')
+    } finally {
+      setDifyUploading(false)
     }
   }
 
@@ -212,6 +261,56 @@ export default function AdminDashboard() {
           システムツール
         </h2>
         <div className="space-y-4">
+          {/* Dify連携 */}
+          <div className="p-4 bg-white/5 rounded-lg border border-purple-500/20">
+            <div className="flex items-center gap-2 mb-3">
+              <Cloud className="w-5 h-5 text-purple-400" />
+              <p className="text-white font-medium">Difyナレッジベース連携</p>
+              {difyStatus?.isConfigured ? (
+                <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-lg">設定済み</span>
+              ) : (
+                <span className="px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-lg">未設定</span>
+              )}
+            </div>
+            <p className="text-sm text-gray-400 mb-3">
+              PDFファイルをDifyのナレッジベースに自動アップロードし、AIがより詳細に回答できるようにします
+            </p>
+            {difyStatus?.isConfigured ? (
+              <>
+                <div className="flex items-center gap-4 mb-3 text-sm">
+                  <span className="text-gray-400">
+                    アップロード済み: <span className="text-green-400">{difyStatus.stats.uploaded}</span>
+                  </span>
+                  <span className="text-gray-400">
+                    未アップロード: <span className="text-yellow-400">{difyStatus.stats.pending}</span>
+                  </span>
+                </div>
+                <button
+                  onClick={handleDifyUpload}
+                  disabled={difyUploading || difyStatus.stats.pending === 0}
+                  className="btn-primary flex items-center gap-2"
+                >
+                  <Upload className={`w-4 h-4 ${difyUploading ? 'animate-pulse' : ''}`} />
+                  {difyUploading ? 'アップロード中...' : `Difyにアップロード (${difyStatus.stats.pending}件)`}
+                </button>
+              </>
+            ) : (
+              <div className="p-3 bg-yellow-500/10 rounded-lg text-sm text-yellow-400">
+                <p>Dify連携を有効にするには、.envに以下を設定してください：</p>
+                <code className="block mt-2 p-2 bg-black/30 rounded text-xs">
+                  DIFY_DATASET_API_KEY=your_dataset_api_key<br />
+                  DIFY_DATASET_ID=your_knowledge_base_id
+                </code>
+              </div>
+            )}
+            {difyResult && (
+              <div className="mt-3 p-3 bg-white/5 rounded-lg">
+                <p className="text-sm text-gray-300">{difyResult}</p>
+              </div>
+            )}
+          </div>
+
+          {/* 添付ファイル再処理 */}
           <div className="p-4 bg-white/5 rounded-lg">
             <div className="flex items-center justify-between mb-3">
               <div>

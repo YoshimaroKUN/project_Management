@@ -109,6 +109,7 @@ model NotificationAttachment {
   mimetype       String       // ファイルタイプ
   size           Int          // ファイルサイズ（バイト）
   textContent    String?      // PDFから抽出したテキスト（AI用）
+  difyDocumentId String?      // DifyナレッジベースのドキュメントID
   createdAt      DateTime     @default(now())
 }
 
