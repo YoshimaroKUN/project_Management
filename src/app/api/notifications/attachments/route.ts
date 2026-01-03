@@ -155,15 +155,19 @@ export async function POST(request: NextRequest) {
         // Dify対応ファイル形式をチェック（TXT, Markdown, PDF, HTML, XLSX, XLS, DOCX, CSV）
         const difySupported = ['.txt', '.md', '.pdf', '.html', '.xlsx', '.xls', '.docx', '.csv']
         if (difySupported.includes(fileExt)) {
-          difyDocumentId = await uploadToDify(buffer, file.name)
+          console.log(`Uploading to Dify: ${file.name} (${file.type})`)
+          const difyResult = await uploadToDify(file.name, buffer, file.type)
           
-          if (difyDocumentId) {
+          if (difyResult.success && difyResult.documentId) {
+            difyDocumentId = difyResult.documentId
             // difyDocumentIdをDBに保存
             await prisma.notificationAttachment.update({
               where: { id: attachment.id },
               data: { difyDocumentId },
             })
             console.log(`Dify upload success: ${file.name} -> ${difyDocumentId}`)
+          } else {
+            console.error(`Dify upload failed: ${difyResult.error}`)
           }
         } else {
           console.log(`File type ${fileExt} not supported by Dify, skipping upload`)
@@ -172,6 +176,8 @@ export async function POST(request: NextRequest) {
         console.error('Dify upload failed (non-fatal):', difyError)
         // Difyアップロード失敗はエラーにしない（ローカル保存は成功）
       }
+    } else {
+      console.log(`Dify upload skipped: uploadToDifyFlag=${uploadToDifyFlag}, isDifyConfigured=${isDifyConfigured()}`)
     }
 
     return NextResponse.json({
