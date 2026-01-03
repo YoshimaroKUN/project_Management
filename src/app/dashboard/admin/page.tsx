@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import {
   Shield,
@@ -17,6 +17,7 @@ import {
   FileText,
   Cloud,
   Upload,
+  CheckCircle,
 } from 'lucide-react'
 
 interface Stats {
@@ -48,6 +49,9 @@ export default function AdminDashboard() {
   const [difyStatus, setDifyStatus] = useState<DifyStatus | null>(null)
   const [difyUploading, setDifyUploading] = useState(false)
   const [difyResult, setDifyResult] = useState<string | null>(null)
+  const [manualUploading, setManualUploading] = useState(false)
+  const [manualUploadResult, setManualUploadResult] = useState<string | null>(null)
+  const manualFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -127,6 +131,53 @@ export default function AdminDashboard() {
     } finally {
       setReprocessing(false)
     }
+  }
+
+  const handleManualDifyUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files || files.length === 0) return
+
+    setManualUploading(true)
+    setManualUploadResult(null)
+    
+    let successCount = 0
+    let failCount = 0
+    const results: string[] = []
+
+    for (const file of Array.from(files)) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        const response = await fetch('/api/admin/dify-sync', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          successCount++
+          results.push(`✅ ${file.name}`)
+        } else {
+          const data = await response.json()
+          failCount++
+          results.push(`❌ ${file.name}: ${data.error}`)
+        }
+      } catch (error) {
+        failCount++
+        results.push(`❌ ${file.name}: アップロードエラー`)
+      }
+    }
+
+    setManualUploadResult(`成功: ${successCount}件, 失敗: ${failCount}件\n${results.join('\n')}`)
+    loadDifyStatus()
+    
+    // ファイル入力をリセット
+    if (manualFileInputRef.current) {
+      manualFileInputRef.current.value = ''
+    }
+    
+    setManualUploading(false)
   }
 
   if (status === 'loading' || loading) {
@@ -285,14 +336,32 @@ export default function AdminDashboard() {
                     未アップロード: <span className="text-yellow-400">{difyStatus.stats.pending}</span>
                   </span>
                 </div>
-                <button
-                  onClick={handleDifyUpload}
-                  disabled={difyUploading || difyStatus.stats.pending === 0}
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <Upload className={`w-4 h-4 ${difyUploading ? 'animate-pulse' : ''}`} />
-                  {difyUploading ? 'アップロード中...' : `Difyにアップロード (${difyStatus.stats.pending}件)`}
-                </button>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <button
+                    onClick={handleDifyUpload}
+                    disabled={difyUploading || difyStatus.stats.pending === 0}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <Upload className={`w-4 h-4 ${difyUploading ? 'animate-pulse' : ''}`} />
+                    {difyUploading ? 'アップロード中...' : `未アップロードを同期 (${difyStatus.stats.pending}件)`}
+                  </button>
+                  <label className="btn-secondary flex items-center gap-2 cursor-pointer">
+                    <FileText className={`w-4 h-4 ${manualUploading ? 'animate-pulse' : ''}`} />
+                    {manualUploading ? 'アップロード中...' : '手動でファイルをアップロード'}
+                    <input
+                      ref={manualFileInputRef}
+                      type="file"
+                      className="hidden"
+                      onChange={handleManualDifyUpload}
+                      accept=".pdf,.txt,.md,.html,.xlsx,.xls,.docx,.csv"
+                      multiple
+                      disabled={manualUploading}
+                    />
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500 mb-2">
+                  手動アップロード対応形式: PDF, TXT, Markdown, HTML, Excel, Word, CSV
+                </p>
               </>
             ) : (
               <div className="p-3 bg-yellow-500/10 rounded-lg text-sm text-yellow-400">
@@ -306,6 +375,11 @@ export default function AdminDashboard() {
             {difyResult && (
               <div className="mt-3 p-3 bg-white/5 rounded-lg">
                 <p className="text-sm text-gray-300">{difyResult}</p>
+              </div>
+            )}
+            {manualUploadResult && (
+              <div className="mt-3 p-3 bg-white/5 rounded-lg">
+                <p className="text-sm text-gray-300 whitespace-pre-line">{manualUploadResult}</p>
               </div>
             )}
           </div>

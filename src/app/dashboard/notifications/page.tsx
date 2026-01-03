@@ -77,6 +77,7 @@ export default function NotificationsPage() {
   const [type, setType] = useState('info')
   const [isGlobal, setIsGlobal] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadToDify, setUploadToDify] = useState(true)
 
   // Link form state
   const [linkTitle, setLinkTitle] = useState('')
@@ -221,6 +222,7 @@ export default function NotificationsPage() {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('notificationId', selectedNotification.id)
+      formData.append('uploadToDify', uploadToDify.toString())
 
       const response = await fetch('/api/notifications/attachments', {
         method: 'POST',
@@ -563,18 +565,29 @@ export default function NotificationsPage() {
                     <Paperclip className="w-4 h-4" />
                     添付ファイル
                   </h4>
-                  <label className="btn-secondary text-sm flex items-center gap-2 cursor-pointer">
-                    <Upload className="w-4 h-4" />
-                    {uploading ? 'アップロード中...' : 'ファイルを追加'}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      className="hidden"
-                      onChange={handleFileUpload}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt,application/pdf"
-                      disabled={uploading}
-                    />
-                  </label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={uploadToDify}
+                        onChange={(e) => setUploadToDify(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
+                      />
+                      AIに情報を渡す
+                    </label>
+                    <label className="btn-secondary text-sm flex items-center gap-2 cursor-pointer">
+                      <Upload className="w-4 h-4" />
+                      {uploading ? 'アップロード中...' : 'ファイルを追加'}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt,application/pdf"
+                        disabled={uploading}
+                      />
+                    </label>
+                  </div>
                 </div>
                 
                 {selectedNotification.attachments && selectedNotification.attachments.length > 0 ? (

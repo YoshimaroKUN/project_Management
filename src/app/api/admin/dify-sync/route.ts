@@ -169,7 +169,43 @@ export async function POST(request: NextRequest) {
         ...uploadResult,
       })
     } else {
-      return NextResponse.json({ error: 'attachmentIdまたはall=trueを指定してください' }, { status: 400 })
+      // FormDataからファイルを受け取る（手動アップロード）
+      const contentType = request.headers.get('content-type') || ''
+      
+      if (contentType.includes('multipart/form-data')) {
+        const formData = await request.formData()
+        const file = formData.get('file') as File | null
+        
+        if (!file) {
+          return NextResponse.json({ error: 'ファイルが必要です' }, { status: 400 })
+        }
+        
+        // Dify対応形式チェック
+        const supportedExtensions = ['.txt', '.md', '.pdf', '.html', '.xlsx', '.xls', '.docx', '.csv']
+        const fileExt = '.' + (file.name.split('.').pop()?.toLowerCase() || '')
+        
+        if (!supportedExtensions.includes(fileExt)) {
+          return NextResponse.json({ 
+            error: `対応していないファイル形式です。対応形式: ${supportedExtensions.join(', ')}` 
+          }, { status: 400 })
+        }
+        
+        const bytes = await file.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+        
+        const uploadResult = await uploadToDify(
+          file.name,
+          buffer,
+          file.type
+        )
+        
+        results.push({
+          filename: file.name,
+          ...uploadResult,
+        })
+      } else {
+        return NextResponse.json({ error: 'attachmentIdまたはall=trueを指定してください' }, { status: 400 })
+      }
     }
 
     const successCount = results.filter(r => r.success).length

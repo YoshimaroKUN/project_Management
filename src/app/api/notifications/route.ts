@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { deleteFromDify, isDifyConfigured } from '@/lib/dify'
 
 export async function GET(request: NextRequest) {
   try {
@@ -137,6 +138,26 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json({ error: '通知IDが必要です' }, { status: 400 })
+    }
+
+    // 削除前に関連する添付ファイルのDify Document IDを取得
+    const attachments = await prisma.notificationAttachment.findMany({
+      where: { notificationId: id },
+      select: { difyDocumentId: true },
+    })
+
+    // Difyからドキュメントを削除
+    if (isDifyConfigured()) {
+      for (const att of attachments) {
+        if (att.difyDocumentId) {
+          try {
+            await deleteFromDify(att.difyDocumentId)
+            console.log(`Deleted from Dify: ${att.difyDocumentId}`)
+          } catch (difyError) {
+            console.error('Dify delete failed (non-fatal):', difyError)
+          }
+        }
+      }
     }
 
     await prisma.notification.delete({ where: { id } })

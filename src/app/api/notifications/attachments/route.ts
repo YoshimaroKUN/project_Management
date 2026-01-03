@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 import { prisma } from '@/lib/prisma'
+import { uploadToDify, deleteFromDify, isDifyConfigured } from '@/lib/dify'
 
 // PDFからテキストを抽出する関数
 async function extractTextFromPDF(buffer: Buffer): Promise<string> {
@@ -48,6 +49,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const file = formData.get('file') as File | null
     const notificationId = formData.get('notificationId') as string | null
+    const uploadToDifyFlag = formData.get('uploadToDify') === 'true'
 
     if (!file) {
       return NextResponse.json({ error: 'ファイルが必要です' }, { status: 400 })
@@ -146,9 +148,39 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Difyにアップロードする場合
+    let difyDocumentId: string | null = null
+    if (uploadToDifyFlag && isDifyConfigured()) {
+      try {
+        // Dify対応ファイル形式をチェック（TXT, Markdown, PDF, HTML, XLSX, XLS, DOCX, CSV）
+        const difySupported = ['.txt', '.md', '.pdf', '.html', '.xlsx', '.xls', '.docx', '.csv']
+        if (difySupported.includes(fileExt)) {
+          difyDocumentId = await uploadToDify(buffer, file.name)
+          
+          if (difyDocumentId) {
+            // difyDocumentIdをDBに保存
+            await prisma.notificationAttachment.update({
+              where: { id: attachment.id },
+              data: { difyDocumentId },
+            })
+            console.log(`Dify upload success: ${file.name} -> ${difyDocumentId}`)
+          }
+        } else {
+          console.log(`File type ${fileExt} not supported by Dify, skipping upload`)
+        }
+      } catch (difyError) {
+        console.error('Dify upload failed (non-fatal):', difyError)
+        // Difyアップロード失敗はエラーにしない（ローカル保存は成功）
+      }
+    }
+
     return NextResponse.json({
       message: 'ファイルをアップロードしました',
-      attachment,
+      attachment: {
+        ...attachment,
+        difyDocumentId,
+      },
+      difyUploaded: !!difyDocumentId,
     })
   } catch (error) {
     console.error('Attachment upload error:', error)
@@ -173,6 +205,28 @@ export async function DELETE(request: NextRequest) {
 
     if (!attachmentId) {
       return NextResponse.json({ error: '添付ファイルIDが必要です' }, { status: 400 })
+    }
+
+    // 削除前にDify Document IDを取得
+    const attachment = await prisma.notificationAttachment.findUnique({
+      where: { id: attachmentId },
+    })
+
+    if (!attachment) {
+      return NextResponse.json({ error: '添付ファイルが見つかりません' }, { status: 404 })
+    }
+
+    // DifyからドキュメントがあればDifyからも削除
+    if (attachment.difyDocumentId && isDifyConfigured()) {
+      try {
+        const deleted = await deleteFromDify(attachment.difyDocumentId)
+        if (deleted) {
+          console.log(`Deleted from Dify: ${attachment.difyDocumentId}`)
+        }
+      } catch (difyError) {
+        console.error('Dify delete failed (non-fatal):', difyError)
+        // Dify削除失敗はエラーにしない
+      }
     }
 
     await prisma.notificationAttachment.delete({
