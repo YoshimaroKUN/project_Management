@@ -13,6 +13,7 @@ services:
       - DIFY_API_KEY=${DIFY_API_KEY}
       - DIFY_DATASET_API_KEY=${DIFY_DATASET_API_KEY}
       - DIFY_DATASET_ID=${DIFY_DATASET_ID}
+      - DIFY_KNOWLEDGE_SECRET=${DIFY_KNOWLEDGE_SECRET}
     volumes:
       # データベースを永続化
       - ./data:/app/data
