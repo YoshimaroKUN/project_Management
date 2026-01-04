@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useSession } from 'next-auth/react'
-import { Settings, User, Lock, Bell, Palette, Save, Upload, Camera, Check, AlertCircle, CheckCircle } from 'lucide-react'
+import { useSession, signOut } from 'next-auth/react'
+import { Settings, User, Lock, Bell, Palette, Save, Upload, Camera, Check, AlertCircle, CheckCircle, Trash2, AlertTriangle } from 'lucide-react'
 import Image from 'next/image'
 
 type Theme = 'dark' | 'light' | 'system'
@@ -37,11 +37,17 @@ export default function SettingsPage() {
     system: true,
   })
 
+  // Delete account state
+  const [deletePassword, setDeletePassword] = useState('')
+  const [deleteConfirmed, setDeleteConfirmed] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
   const tabs = [
     { id: 'profile', label: 'プロフィール', icon: User },
     { id: 'security', label: 'セキュリティ', icon: Lock },
     { id: 'notifications', label: '通知', icon: Bell },
     { id: 'appearance', label: '外観', icon: Palette },
+    { id: 'danger', label: 'アカウント削除', icon: Trash2 },
   ]
 
   // Load settings from localStorage
@@ -188,6 +194,40 @@ export default function SettingsPage() {
       [key]: value
     }))
     showMessage('通知設定を更新しました')
+  }
+
+  // Handle account deletion
+  const handleDeleteAccount = async () => {
+    if (!deletePassword || !deleteConfirmed) {
+      showMessage('パスワードと確認チェックが必要です', true)
+      return
+    }
+
+    if (!confirm('本当にアカウントを削除しますか？この操作は取り消せません。')) {
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const response = await fetch('/api/user/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: deletePassword, confirmed: deleteConfirmed }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // ログアウトしてログインページへ
+        signOut({ callbackUrl: '/login' })
+      } else {
+        showMessage(data.error || 'アカウントの削除に失敗しました', true)
+      }
+    } catch (error) {
+      showMessage('削除中にエラーが発生しました', true)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   // Apply theme to DOM
@@ -527,6 +567,77 @@ export default function SettingsPage() {
                     ))}
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'danger' && (
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 text-red-400">
+                <AlertTriangle className="w-6 h-6" />
+                <h2 className="text-lg font-semibold">アカウント削除</h2>
+              </div>
+
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+                <p className="text-red-300 text-sm mb-2">
+                  ⚠️ アカウントを削除すると、以下のデータがすべて失われます：
+                </p>
+                <ul className="text-red-300/80 text-sm list-disc list-inside space-y-1">
+                  <li>プロフィール情報とアバター画像</li>
+                  <li>すべての予定とカレンダーデータ</li>
+                  <li>すべての課題データ</li>
+                  <li>AIチャットの会話履歴</li>
+                  <li>通知の既読状態</li>
+                </ul>
+                <p className="text-red-400 font-medium mt-3">
+                  この操作は取り消すことができません。
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-1 block">
+                    パスワードを入力して確認
+                  </label>
+                  <input
+                    type="password"
+                    value={deletePassword}
+                    onChange={(e) => setDeletePassword(e.target.value)}
+                    className="input-modern"
+                    placeholder="現在のパスワード"
+                  />
+                </div>
+
+                <label className="flex items-start gap-3 p-4 bg-white/5 rounded-xl cursor-pointer hover:bg-white/10 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={deleteConfirmed}
+                    onChange={(e) => setDeleteConfirmed(e.target.checked)}
+                    className="mt-1 w-5 h-5 rounded border-gray-500 bg-white/10 text-red-500 focus:ring-red-500"
+                  />
+                  <span className="text-gray-300 text-sm">
+                    アカウントを削除することに同意します。すべてのデータが完全に削除され、
+                    復元できないことを理解しています。
+                  </span>
+                </label>
+
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={!deletePassword || !deleteConfirmed || deleting}
+                  className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      削除中...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-5 h-5" />
+                      アカウントを完全に削除
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}

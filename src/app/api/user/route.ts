@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
         name: true,
         avatar: true,
         role: true,
+        isRestricted: true,
+        restrictedFeatures: true,
+        restrictionReason: true,
       },
     })
 

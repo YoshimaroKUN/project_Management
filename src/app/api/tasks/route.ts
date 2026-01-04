@@ -43,6 +43,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '認証が必要です' }, { status: 401 })
     }
 
+    // Check if user is restricted
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isRestricted: true, restrictedFeatures: true }
+    })
+    if (user?.isRestricted && user?.restrictedFeatures?.includes('tasks')) {
+      return NextResponse.json({ error: 'この機能は制限されています' }, { status: 403 })
+    }
+
     const { title, description, priority, dueDate } = await request.json()
 
     if (!title) {

@@ -531,6 +531,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'ユーザーが見つかりません。再ログインしてください。' }, { status: 401 })
     }
 
+    // Check if user is restricted from chat
+    if (dbUser.isRestricted && dbUser.restrictedFeatures?.includes('chat')) {
+      return NextResponse.json({ error: 'この機能は制限されています' }, { status: 403 })
+    }
+
     // Get or create conversation
     let conversation
     if (conversationId) {

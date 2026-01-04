@@ -17,6 +17,9 @@ model User {
   password      String
   role          String    @default("USER") // USER or ADMIN
   avatar        String?
+  isRestricted  Boolean   @default(false)  // アカウント制限中
+  restrictedFeatures String? // 制限された機能（カンマ区切り: chat,calendar,tasks,news,map）
+  restrictionReason String?  // 制限理由
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   

@@ -19,20 +19,22 @@ import {
   ChevronDown,
   Settings,
   Shield,
+  Users,
 } from 'lucide-react'
 import Image from 'next/image'
 
 const navigation = [
-  { name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'AIチャット', href: '/dashboard/chat', icon: MessageSquare },
-  { name: 'カレンダー', href: '/dashboard/calendar', icon: Calendar },
-  { name: '課題一覧', href: '/dashboard/tasks', icon: CheckSquare },
-  { name: 'お知らせ', href: '/dashboard/news', icon: Bell },
-  { name: '学内マップ', href: '/dashboard/campus-map', icon: Map },
+  { name: 'ダッシュボード', href: '/dashboard', icon: LayoutDashboard, key: 'dashboard' },
+  { name: 'AIチャット', href: '/dashboard/chat', icon: MessageSquare, key: 'chat' },
+  { name: 'カレンダー', href: '/dashboard/calendar', icon: Calendar, key: 'calendar' },
+  { name: '課題一覧', href: '/dashboard/tasks', icon: CheckSquare, key: 'tasks' },
+  { name: 'お知らせ', href: '/dashboard/news', icon: Bell, key: 'news' },
+  { name: '学内マップ', href: '/dashboard/campus-map', icon: Map, key: 'map' },
 ]
 
 const adminNavigation = [
   { name: '管理ダッシュボード', href: '/dashboard/admin', icon: Shield },
+  { name: 'ユーザー管理', href: '/dashboard/admin/users', icon: Users },
   { name: 'お知らせ管理', href: '/dashboard/notifications', icon: Bell },
   { name: 'マップ管理', href: '/dashboard/map', icon: Map },
 ]
