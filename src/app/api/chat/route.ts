@@ -637,23 +637,32 @@ export async function POST(request: NextRequest) {
     console.log('Context included:', fullContext ? 'Yes' : 'No')
     if (fullContext) console.log('Context preview:', fullContext.substring(0, 200) + '...')
 
-    // Prepare the query with context - より明確に指示を追加
-    let queryWithContext = message
-    if (fullContext) {
-      queryWithContext = `【重要：以下のデータベース情報を必ず参照して回答してください】
-
-${fullContext}
-
-【ユーザーの質問】
-${message}
-
-※ 上記のデータベース情報に基づいて回答してください。情報がない場合のみ「登録されていません」と回答してください。`
-    }
+    // ナレッジベース検索のため、queryには元のメッセージのみを使用
+    // コンテキスト情報はinputsのuser_contextで渡す（Difyのプロンプトで参照）
 
     // Log for debugging
     console.log('Dify API URL:', `${DIFY_API_URL}/chat-messages`)
     console.log('Dify API Key (first 10 chars):', DIFY_API_KEY.substring(0, 10) + '...')
-    console.log('Query length:', queryWithContext.length)
+    console.log('Query:', message)
+    console.log('User context length:', fullContext?.length || 0)
+
+    // Build request body - conversation_id should be omitted if empty
+    const requestBody: Record<string, unknown> = {
+      inputs: {
+        name: session.user.name || 'ユーザー',
+        user_context: fullContext || 'なし',
+      },
+      query: message,  // 元のメッセージをそのまま送信（ナレッジベース検索用）
+      response_mode: 'blocking',
+      user: session.user.id,
+    }
+
+    // Only include conversation_id if it exists
+    if (conversation.difyConversationId) {
+      requestBody.conversation_id = conversation.difyConversationId
+    }
+
+    console.log('Request body keys:', Object.keys(requestBody))
 
     // Call Dify API
     const difyResponse = await fetch(`${DIFY_API_URL}/chat-messages`, {
@@ -662,16 +671,7 @@ ${message}
         'Authorization': `Bearer ${DIFY_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        inputs: {
-          name: session.user.name || 'ユーザー',
-          user_context: fullContext || 'なし',
-        },
-        query: queryWithContext,
-        response_mode: 'blocking',
-        conversation_id: conversation.difyConversationId || '',
-        user: session.user.id,
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     console.log('Dify Response Status:', difyResponse.status)
