@@ -212,6 +212,177 @@ async function getUserContext(userId: string, query: string) {
   return context
 }
 
+// 追加リクエストを検出して処理する関数
+interface AddRequest {
+  type: 'task' | 'event' | null
+  title: string
+  date: Date | null
+  priority?: 'HIGH' | 'MEDIUM' | 'LOW'
+  allDay?: boolean
+}
+
+function parseAddRequest(query: string): AddRequest | null {
+  // 追加キーワードの検出
+  const addKeywords = ['追加', '登録', '入れて', 'いれて', '作って', 'つくって', '設定', 'セット', '予約']
+  const hasAddKeyword = addKeywords.some(k => query.includes(k))
+  
+  if (!hasAddKeyword) return null
+  
+  // 課題か予定かを判定
+  const isTask = query.includes('課題') || query.includes('タスク') || query.includes('宿題') || query.includes('レポート') || query.includes('提出')
+  const isEvent = query.includes('予定') || query.includes('イベント') || query.includes('スケジュール') || query.includes('カレンダー') || query.includes('会議') || query.includes('授業')
+  
+  if (!isTask && !isEvent) return null
+  
+  const now = new Date()
+  let targetDate: Date | null = null
+  
+  // 日付を解析
+  // 「X月Y日」形式
+  const monthDayMatch = query.match(/(\d{1,2})月\s*(\d{1,2})日/)
+  if (monthDayMatch) {
+    const month = parseInt(monthDayMatch[1]) - 1
+    const day = parseInt(monthDayMatch[2])
+    let year = now.getFullYear()
+    // 過去の日付は来年とみなす
+    const tempDate = new Date(year, month, day)
+    if (tempDate < now) {
+      year++
+    }
+    targetDate = new Date(year, month, day, 9, 0, 0)
+  }
+  
+  // 「明日」
+  if (query.includes('明日')) {
+    targetDate = new Date(now)
+    targetDate.setDate(now.getDate() + 1)
+    targetDate.setHours(9, 0, 0, 0)
+  }
+  
+  // 「明後日」
+  if (query.includes('明後日') || query.includes('あさって')) {
+    targetDate = new Date(now)
+    targetDate.setDate(now.getDate() + 2)
+    targetDate.setHours(9, 0, 0, 0)
+  }
+  
+  // 「来週」
+  if (query.includes('来週')) {
+    const dayOfWeek = now.getDay()
+    const daysUntilNextMonday = (8 - dayOfWeek) % 7 || 7
+    targetDate = new Date(now)
+    targetDate.setDate(now.getDate() + daysUntilNextMonday)
+    targetDate.setHours(9, 0, 0, 0)
+  }
+  
+  // 「今週」
+  if (query.includes('今週') && !targetDate) {
+    targetDate = new Date(now)
+    targetDate.setDate(now.getDate() + 3) // 今週の中頃
+    targetDate.setHours(9, 0, 0, 0)
+  }
+  
+  // 「X日後」
+  const daysLaterMatch = query.match(/(\d+)日後/)
+  if (daysLaterMatch) {
+    const days = parseInt(daysLaterMatch[1])
+    targetDate = new Date(now)
+    targetDate.setDate(now.getDate() + days)
+    targetDate.setHours(9, 0, 0, 0)
+  }
+  
+  // 時刻解析
+  const timeMatch = query.match(/(\d{1,2})[時:](\d{0,2})分?/)
+  if (timeMatch && targetDate) {
+    const hour = parseInt(timeMatch[1])
+    const minute = timeMatch[2] ? parseInt(timeMatch[2]) : 0
+    targetDate.setHours(hour, minute, 0, 0)
+  }
+  
+  // 優先度解析
+  let priority: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM'
+  if (query.includes('重要') || query.includes('急ぎ') || query.includes('緊急') || query.includes('高優先')) {
+    priority = 'HIGH'
+  } else if (query.includes('低優先') || query.includes('余裕')) {
+    priority = 'LOW'
+  }
+  
+  // タイトルを抽出（「〜を追加」「〜の予定」などから）
+  let title = ''
+  
+  // 「」や『』で囲まれた部分を探す
+  const quotedMatch = query.match(/[「『](.+?)[」』]/)
+  if (quotedMatch) {
+    title = quotedMatch[1]
+  } else {
+    // 「〜を追加」「〜を登録」パターン
+    const titleMatch = query.match(/[「『]?(.+?)[」』]?(?:を|の)\s*(?:課題|タスク|予定|イベント|スケジュール)/)
+    if (titleMatch) {
+      title = titleMatch[1].trim()
+    }
+    
+    // それでも見つからない場合、キーワードを除去して残りをタイトルに
+    if (!title) {
+      title = query
+        .replace(/課題|タスク|予定|イベント|スケジュール|カレンダー|宿題|レポート|会議|授業/g, '')
+        .replace(/追加|登録|入れて|いれて|作って|つくって|設定|セット|予約/g, '')
+        .replace(/して|しておいて|お願い|ください/g, '')
+        .replace(/明日|明後日|来週|今週|\d+月\d+日|\d+日後/g, '')
+        .replace(/重要|急ぎ|緊急|高優先|低優先|余裕/g, '')
+        .replace(/[\s　]+/g, ' ')
+        .trim()
+    }
+  }
+  
+  // タイトルが空または短すぎる場合
+  if (!title || title.length < 2) {
+    title = isTask ? '新しい課題' : '新しい予定'
+  }
+  
+  return {
+    type: isTask ? 'task' : 'event',
+    title,
+    date: targetDate,
+    priority: isTask ? priority : undefined,
+    allDay: !timeMatch,
+  }
+}
+
+// 課題を追加する関数
+async function addTask(userId: string, title: string, dueDate: Date | null, priority: 'HIGH' | 'MEDIUM' | 'LOW') {
+  const task = await prisma.task.create({
+    data: {
+      title,
+      userId,
+      dueDate,
+      priority,
+      status: 'TODO',
+    },
+  })
+  return task
+}
+
+// 予定を追加する関数
+async function addEvent(userId: string, title: string, startDate: Date, allDay: boolean) {
+  const endDate = new Date(startDate)
+  if (allDay) {
+    endDate.setHours(23, 59, 59)
+  } else {
+    endDate.setHours(startDate.getHours() + 1) // デフォルト1時間
+  }
+  
+  const event = await prisma.event.create({
+    data: {
+      title,
+      userId,
+      startDate,
+      endDate,
+      allDay,
+    },
+  })
+  return event
+}
+
 // Helper function to get notifications for explicit request (keyword detection only)
 async function getNotificationsContext(query: string) {
   const notifications = await prisma.notification.findMany({
@@ -388,8 +559,53 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // 追加リクエストを検出して処理
+    const addRequest = parseAddRequest(message)
+    let addedItem: { type: string; title: string; date: string | null } | null = null
+    
+    if (addRequest && addRequest.type) {
+      try {
+        if (addRequest.type === 'task') {
+          const task = await addTask(
+            session.user.id,
+            addRequest.title,
+            addRequest.date,
+            addRequest.priority || 'MEDIUM'
+          )
+          const dateStr = addRequest.date 
+            ? addRequest.date.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
+            : null
+          addedItem = { type: '課題', title: task.title, date: dateStr }
+          console.log('Task added:', task)
+        } else if (addRequest.type === 'event') {
+          // 日付がない場合は追加しない
+          if (addRequest.date) {
+            const event = await addEvent(
+              session.user.id,
+              addRequest.title,
+              addRequest.date,
+              addRequest.allDay ?? true
+            )
+            const dateStr = addRequest.date.toLocaleDateString('ja-JP', { 
+              year: 'numeric', month: 'long', day: 'numeric',
+              ...(addRequest.allDay ? {} : { hour: '2-digit', minute: '2-digit' })
+            })
+            addedItem = { type: '予定', title: event.title, date: dateStr }
+            console.log('Event added:', event)
+          }
+        }
+      } catch (addError) {
+        console.error('Failed to add item:', addError)
+      }
+    }
+
     // Build context based on message content
     let fullContext = ''
+    
+    // 追加した項目があればコンテキストに含める
+    if (addedItem) {
+      fullContext += `【追加完了】\n${addedItem.type}「${addedItem.title}」を${addedItem.date ? `${addedItem.date}に` : ''}追加しました。\n\n`
+    }
     
     // 1. ユーザーの課題・予定を取得（質問に応じた期間）
     const userContext = await getUserContext(session.user.id, message)
