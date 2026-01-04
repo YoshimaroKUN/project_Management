@@ -105,19 +105,19 @@ export default function CampusMapPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-glow">
-            <MapIcon className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-glow">
+            <MapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">学内マップ</h1>
-            <p className="text-sm text-gray-400">キャンパス内の施設を検索</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-white">学内マップ</h1>
+            <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">キャンパス内の施設を検索</p>
           </div>
         </div>
       </div>
 
       {/* Search and Filters */}
       <div className="glass-card rounded-2xl p-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
+        <div className="flex flex-col gap-4">
           {/* Search Input */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -138,11 +138,11 @@ export default function CampusMapPage() {
             )}
           </div>
 
-          {/* Category Filters */}
-          <div className="flex gap-2 flex-wrap">
+          {/* Category Filters - scrollable on mobile */}
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
             <button
               onClick={() => setCategoryFilter(null)}
-              className={`px-3 py-2 rounded-lg text-sm transition-all ${
+              className={`px-3 py-2 rounded-lg text-sm transition-all flex-shrink-0 ${
                 !categoryFilter
                   ? 'bg-primary-500 text-white'
                   : 'bg-white/5 text-gray-400 hover:bg-white/10'
@@ -156,14 +156,14 @@ export default function CampusMapPage() {
                 <button
                   key={key}
                   onClick={() => setCategoryFilter(key)}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-all ${
+                  className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-all flex-shrink-0 ${
                     categoryFilter === key
                       ? 'bg-primary-500 text-white'
                       : 'bg-white/5 text-gray-400 hover:bg-white/10'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  {config.label}
+                  <span className="hidden sm:inline">{config.label}</span>
                 </button>
               )
             })}

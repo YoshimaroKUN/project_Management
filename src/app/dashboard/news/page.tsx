@@ -170,37 +170,37 @@ export default function NewsPage() {
   return (
     <div className="max-w-4xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-glow">
-            <Bell className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-glow">
+            <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">お知らせ</h1>
-            <p className="text-sm text-gray-400">
+            <h1 className="text-xl sm:text-2xl font-bold text-white">お知らせ</h1>
+            <p className="text-xs sm:text-sm text-gray-400">
               {unreadCount > 0 ? `${unreadCount}件の未読があります` : 'すべて既読です'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {typeof Notification !== 'undefined' && notificationPermission !== 'granted' && (
             <button
               onClick={requestNotificationPermission}
-              className="flex items-center gap-2 px-4 py-2 bg-primary-500/20 text-primary-400 rounded-xl hover:bg-primary-500/30 transition-all"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary-500/20 text-primary-400 rounded-xl hover:bg-primary-500/30 transition-all"
             >
               <BellRing className="w-4 h-4" />
-              <span className="text-sm">通知を許可</span>
+              <span className="text-xs sm:text-sm hidden sm:inline">通知を許可</span>
             </button>
           )}
 
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="flex items-center gap-2 px-4 py-2 bg-white/5 text-gray-300 rounded-xl hover:bg-white/10 transition-all"
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 text-gray-300 rounded-xl hover:bg-white/10 transition-all"
             >
               <Check className="w-4 h-4" />
-              <span className="text-sm">すべて既読</span>
+              <span className="text-xs sm:text-sm">すべて既読</span>
             </button>
           )}
         </div>

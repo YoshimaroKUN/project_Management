@@ -166,25 +166,25 @@ export default function TasksPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-glow">
-            <CheckSquare className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-glow">
+            <CheckSquare className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">課題一覧</h1>
-            <p className="text-sm text-gray-400">タスクを管理しましょう</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-white">課題一覧</h1>
+            <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">タスクを管理しましょう</p>
           </div>
         </div>
         <button onClick={openAddModal} className="btn-primary flex items-center gap-2">
           <Plus className="w-5 h-5" />
-          課題を追加
+          <span className="hidden sm:inline">課題を追加</span>
         </button>
       </div>
 
       {/* Filters */}
-      <div className="glass-card p-4 mb-6">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-400 mr-2">フィルター:</span>
+      <div className="glass-card p-4 mb-6 overflow-x-auto">
+        <div className="flex items-center gap-2 min-w-max">
+          <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <span className="text-sm text-gray-400 mr-2 hidden sm:inline">フィルター:</span>
           {[
             { value: 'all', label: 'すべて' },
             ...statusOptions,
@@ -192,7 +192,7 @@ export default function TasksPage() {
             <button
               key={option.value}
               onClick={() => setFilter(option.value)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors whitespace-nowrap ${
                 filter === option.value
                   ? 'bg-primary-500 text-white'
                   : 'bg-white/5 text-gray-300 hover:bg-white/10'

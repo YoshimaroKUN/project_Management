@@ -201,13 +201,13 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-glow">
-          <Shield className="w-7 h-7 text-white" />
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="w-10 h-10 sm:w-14 sm:h-14 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-glow">
+          <Shield className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-white">管理者ダッシュボード</h1>
-          <p className="text-gray-400">システム全体の管理と統計</p>
+          <h1 className="text-xl sm:text-3xl font-bold text-white">管理者ダッシュボード</h1>
+          <p className="text-xs sm:text-base text-gray-400 hidden sm:block">システム全体の管理と統計</p>
         </div>
       </div>
 

@@ -193,17 +193,17 @@ export default function MapPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-glow">
-            <MapIcon className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-glow">
+            <MapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">マップ管理</h1>
-            <p className="text-sm text-gray-400">施設やポイントを地図上で管理</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-white">マップ管理</h1>
+            <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">施設やポイントを地図上で管理</p>
           </div>
         </div>
         <button onClick={() => openAddModal()} className="btn-primary flex items-center gap-2">
           <Plus className="w-5 h-5" />
-          マーカーを追加
+          <span className="hidden sm:inline">マーカーを追加</span>
         </button>
       </div>
 

@@ -273,33 +273,33 @@ export default function SettingsPage() {
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-12 h-12 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl flex items-center justify-center shadow-glow">
-          <Settings className="w-6 h-6 text-white" />
+        <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl flex items-center justify-center shadow-glow">
+          <Settings className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white">設定</h1>
-          <p className="text-sm text-gray-400">アカウントとアプリの設定を管理</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">設定</h1>
+          <p className="text-xs sm:text-sm text-gray-400 hidden sm:block">アカウントとアプリの設定を管理</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Sidebar */}
-        <div className="glass-card p-4">
-          <nav className="space-y-1">
+        {/* Sidebar - Horizontal scroll on mobile */}
+        <div className="glass-card p-2 sm:p-4 overflow-x-auto lg:overflow-visible">
+          <nav className="flex lg:flex-col gap-1 min-w-max lg:min-w-0">
             {tabs.map((tab) => {
               const TabIcon = tab.icon
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                  className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-xl transition-colors whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'bg-primary-500/20 text-white'
                       : 'text-gray-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <TabIcon className="w-5 h-5" />
-                  {tab.label}
+                  <TabIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm sm:text-base">{tab.label}</span>
                 </button>
               )
             })}

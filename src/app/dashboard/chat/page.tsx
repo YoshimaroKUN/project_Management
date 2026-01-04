@@ -52,9 +52,21 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false) // モバイル時はデフォルト閉じる
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // デスクトップではサイドバーをデフォルトで開く
+  useEffect(() => {
+    const checkScreenSize = () => {
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true)
+      }
+    }
+    checkScreenSize()
+    window.addEventListener('resize', checkScreenSize)
+    return () => window.removeEventListener('resize', checkScreenSize)
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -188,13 +200,23 @@ export default function ChatPage() {
 
   return (
     <div className="h-[calc(100vh-4rem)] flex animate-fade-in relative">
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar - Conversation List */}
       <div
         className={`${
-          sidebarOpen ? 'w-72' : 'w-0'
-        } transition-all duration-300 overflow-hidden flex-shrink-0`}
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed lg:relative lg:translate-x-0 top-0 left-0 h-full z-40 transition-transform duration-300 ${
+          sidebarOpen ? 'lg:w-72' : 'lg:w-0'
+        } lg:flex-shrink-0`}
       >
-        <div className="w-72 h-full glass-card mr-4 flex flex-col">
+        <div className="w-72 h-full glass-card lg:mr-4 flex flex-col">
           {/* Header with close button */}
           <div className="p-4 border-b border-white/10 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-300">チャット履歴</span>
@@ -264,25 +286,25 @@ export default function ChatPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            {/* Toggle Sidebar Button */}
-            {!sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 bg-dark-card border border-white/10 rounded-lg hover:bg-white/10 transition-all"
-              >
-                <ChevronRight className="w-5 h-5 text-gray-400" />
-              </button>
-            )}
+            {/* Toggle Sidebar Button - モバイル時は常に表示、デスクトップはサイドバーが閉じているときのみ表示 */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className={`p-2 bg-dark-card border border-white/10 rounded-lg hover:bg-white/10 transition-all ${
+                sidebarOpen ? 'lg:hidden' : ''
+              }`}
+            >
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </button>
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-glow">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-white">AIアシスタント</h1>
-              <p className="text-xs text-gray-400">Dify powered AI Chat</p>
+              <p className="text-xs text-gray-400 hidden sm:block">Dify powered AI Chat</p>
             </div>
           </div>
         </div>
