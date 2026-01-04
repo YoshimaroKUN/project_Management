@@ -6,58 +6,207 @@ import { prisma } from '@/lib/prisma'
 const DIFY_API_URL = process.env.DIFY_API_URL || 'https://api.dify.ai/v1'
 const DIFY_API_KEY = process.env.DIFY_API_KEY || ''
 
-// Helper function to get user's tasks and events for context
-async function getUserContext(userId: string) {
+// 質問から期間を解析する関数
+function parseDateRange(query: string): { start: Date; end: Date; label: string } {
   const now = new Date()
-  const oneWeekLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   
-  // Get upcoming tasks
+  // 来年
+  if (query.includes('来年')) {
+    const nextYear = now.getFullYear() + 1
+    return {
+      start: new Date(nextYear, 0, 1),
+      end: new Date(nextYear, 11, 31, 23, 59, 59),
+      label: `${nextYear}年`
+    }
+  }
+  
+  // 今年
+  if (query.includes('今年')) {
+    return {
+      start: today,
+      end: new Date(now.getFullYear(), 11, 31, 23, 59, 59),
+      label: `${now.getFullYear()}年`
+    }
+  }
+  
+  // Xヶ月後
+  const monthMatch = query.match(/(\d+)\s*[ヶか月ヵ]+\s*後/)
+  if (monthMatch) {
+    const months = parseInt(monthMatch[1])
+    const futureDate = new Date(now)
+    futureDate.setMonth(futureDate.getMonth() + months)
+    return {
+      start: today,
+      end: futureDate,
+      label: `今後${months}ヶ月`
+    }
+  }
+  
+  // 来月
+  if (query.includes('来月')) {
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    const endOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59)
+    return {
+      start: nextMonth,
+      end: endOfNextMonth,
+      label: `${nextMonth.getMonth() + 1}月`
+    }
+  }
+  
+  // 今月
+  if (query.includes('今月')) {
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+    return {
+      start: today,
+      end: endOfMonth,
+      label: `${now.getMonth() + 1}月`
+    }
+  }
+  
+  // 来週
+  if (query.includes('来週')) {
+    const dayOfWeek = now.getDay()
+    const daysUntilNextMonday = (8 - dayOfWeek) % 7 || 7
+    const nextMonday = new Date(today)
+    nextMonday.setDate(today.getDate() + daysUntilNextMonday)
+    const nextSunday = new Date(nextMonday)
+    nextSunday.setDate(nextMonday.getDate() + 6)
+    nextSunday.setHours(23, 59, 59)
+    return {
+      start: nextMonday,
+      end: nextSunday,
+      label: '来週'
+    }
+  }
+  
+  // 今週
+  if (query.includes('今週')) {
+    const dayOfWeek = now.getDay()
+    const daysUntilSunday = 7 - dayOfWeek
+    const endOfWeek = new Date(today)
+    endOfWeek.setDate(today.getDate() + daysUntilSunday)
+    endOfWeek.setHours(23, 59, 59)
+    return {
+      start: today,
+      end: endOfWeek,
+      label: '今週'
+    }
+  }
+  
+  // 明日
+  if (query.includes('明日')) {
+    const tomorrow = new Date(today)
+    tomorrow.setDate(today.getDate() + 1)
+    const endOfTomorrow = new Date(tomorrow)
+    endOfTomorrow.setHours(23, 59, 59)
+    return {
+      start: tomorrow,
+      end: endOfTomorrow,
+      label: '明日'
+    }
+  }
+  
+  // 今日
+  if (query.includes('今日')) {
+    const endOfToday = new Date(today)
+    endOfToday.setHours(23, 59, 59)
+    return {
+      start: today,
+      end: endOfToday,
+      label: '今日'
+    }
+  }
+  
+  // 特定の月（X月）
+  const specificMonthMatch = query.match(/(\d{1,2})月/)
+  if (specificMonthMatch) {
+    const month = parseInt(specificMonthMatch[1]) - 1
+    let year = now.getFullYear()
+    // 過去の月が指定された場合は来年とみなす
+    if (month < now.getMonth()) {
+      year++
+    }
+    const startOfMonth = new Date(year, month, 1)
+    const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59)
+    return {
+      start: startOfMonth,
+      end: endOfMonth,
+      label: `${year}年${month + 1}月`
+    }
+  }
+  
+  // デフォルト: 今後1ヶ月
+  const oneMonthLater = new Date(now)
+  oneMonthLater.setMonth(oneMonthLater.getMonth() + 1)
+  return {
+    start: today,
+    end: oneMonthLater,
+    label: '今後1ヶ月'
+  }
+}
+
+// Helper function to get user's tasks and events for context
+async function getUserContext(userId: string, query: string) {
+  const { start, end, label } = parseDateRange(query)
+  
+  console.log(`Date range for "${query}": ${start.toISOString()} to ${end.toISOString()} (${label})`)
+  
+  // Get tasks in the date range
   const tasks = await prisma.task.findMany({
     where: {
       userId,
       status: { not: 'COMPLETED' },
       dueDate: {
-        gte: now,
-        lte: oneWeekLater,
+        gte: start,
+        lte: end,
       },
     },
     orderBy: { dueDate: 'asc' },
-    take: 10,
+    take: 20,
   })
 
-  // Get upcoming events
+  // Get events in the date range
   const events = await prisma.event.findMany({
     where: {
       userId,
       startDate: {
-        gte: now,
-        lte: oneWeekLater,
+        gte: start,
+        lte: end,
       },
     },
     orderBy: { startDate: 'asc' },
-    take: 10,
+    take: 20,
   })
 
   // Format context string
   let context = ''
   
   if (tasks.length > 0) {
-    context += '【今後の課題】\n'
+    context += `【${label}の課題】\n`
     for (const task of tasks) {
-      const dueDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString('ja-JP') : '期限なし'
+      const dueDate = task.dueDate 
+        ? new Date(task.dueDate).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
+        : '期限なし'
       const priority = task.priority === 'HIGH' ? '🔴高' : task.priority === 'MEDIUM' ? '🟡中' : '🟢低'
       context += `- ${task.title}（期限: ${dueDate}, 優先度: ${priority}）\n`
     }
     context += '\n'
+  } else {
+    context += `【${label}の課題】\n登録されている課題はありません。\n\n`
   }
 
   if (events.length > 0) {
-    context += '【今後の予定】\n'
+    context += `【${label}の予定】\n`
     for (const event of events) {
-      const eventDate = new Date(event.startDate).toLocaleDateString('ja-JP')
+      const eventDate = new Date(event.startDate).toLocaleDateString('ja-JP', { 
+        year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' 
+      })
       const time = event.allDay ? '終日' : new Date(event.startDate).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
       context += `- ${event.title}（${eventDate} ${time}）\n`
     }
+  } else {
+    context += `【${label}の予定】\n登録されている予定はありません。\n`
   }
 
   return context
@@ -242,8 +391,8 @@ export async function POST(request: NextRequest) {
     // Build context based on message content
     let fullContext = ''
     
-    // 1. 常にユーザーの課題・予定を取得（直近1週間）
-    const userContext = await getUserContext(session.user.id)
+    // 1. ユーザーの課題・予定を取得（質問に応じた期間）
+    const userContext = await getUserContext(session.user.id, message)
     if (userContext) fullContext += userContext + '\n'
 
     // 2. Check for notification related keywords (only when explicitly asked)
