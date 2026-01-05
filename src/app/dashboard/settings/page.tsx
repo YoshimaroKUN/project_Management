@@ -42,12 +42,14 @@ export default function SettingsPage() {
   const [deleteConfirmed, setDeleteConfirmed] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  const isAdmin = session?.user?.role === 'ADMIN'
+
   const tabs = [
     { id: 'profile', label: 'プロフィール', icon: User },
     { id: 'security', label: 'セキュリティ', icon: Lock },
     { id: 'notifications', label: '通知', icon: Bell },
     { id: 'appearance', label: '外観', icon: Palette },
-    { id: 'danger', label: 'アカウント削除', icon: Trash2 },
+    ...(!isAdmin ? [{ id: 'danger', label: 'アカウント削除', icon: Trash2 }] : []),
   ]
 
   // Load settings from localStorage

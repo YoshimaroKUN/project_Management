@@ -105,6 +105,25 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: '自分自身を削除することはできません' }, { status: 400 })
     }
 
+    // 対象ユーザーの確認
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'ユーザーが見つかりません' }, { status: 404 })
+    }
+
+    // 対象が管理者の場合、最後の管理者かチェック
+    if (targetUser.role === 'ADMIN') {
+      const adminCount = await prisma.user.count({
+        where: { role: 'ADMIN' },
+      })
+      if (adminCount <= 1) {
+        return NextResponse.json({ error: '最後の管理者は削除できません' }, { status: 400 })
+      }
+    }
+
     // 管理者パスワードの確認
     const admin = await prisma.user.findUnique({
       where: { id: session.user.id },
@@ -128,5 +147,81 @@ export async function DELETE(request: NextRequest) {
   } catch (error) {
     console.error('Failed to delete user:', error)
     return NextResponse.json({ error: 'ユーザーの削除に失敗しました' }, { status: 500 })
+  }
+}
+
+// POST: ユーザーロール変更（管理者のみ）
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: '権限がありません' }, { status: 403 })
+    }
+
+    const { userId, role, password } = await request.json()
+
+    if (!userId || !role || !password) {
+      return NextResponse.json({ error: 'ユーザーID、ロール、パスワードが必要です' }, { status: 400 })
+    }
+
+    if (!['ADMIN', 'USER'].includes(role)) {
+      return NextResponse.json({ error: '無効なロールです' }, { status: 400 })
+    }
+
+    // 自分自身のロールは変更できない
+    if (userId === session.user.id) {
+      return NextResponse.json({ error: '自分自身のロールは変更できません' }, { status: 400 })
+    }
+
+    // 対象ユーザーの確認
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+    })
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'ユーザーが見つかりません' }, { status: 404 })
+    }
+
+    // 管理者を降格する場合、最後の管理者かチェック
+    if (targetUser.role === 'ADMIN' && role === 'USER') {
+      const adminCount = await prisma.user.count({
+        where: { role: 'ADMIN' },
+      })
+      if (adminCount <= 1) {
+        return NextResponse.json({ error: '最後の管理者を降格することはできません' }, { status: 400 })
+      }
+    }
+
+    // 管理者パスワードの確認
+    const admin = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    })
+
+    if (!admin) {
+      return NextResponse.json({ error: '管理者が見つかりません' }, { status: 404 })
+    }
+
+    const isValidPassword = await bcrypt.compare(password, admin.password)
+    if (!isValidPassword) {
+      return NextResponse.json({ error: 'パスワードが正しくありません' }, { status: 401 })
+    }
+
+    // ロール更新
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+      },
+    })
+
+    const message = role === 'ADMIN' ? '管理者に昇格しました' : '一般ユーザーに降格しました'
+    return NextResponse.json({ user: updatedUser, message })
+  } catch (error) {
+    console.error('Failed to change user role:', error)
+    return NextResponse.json({ error: 'ロールの変更に失敗しました' }, { status: 500 })
   }
 }

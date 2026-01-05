@@ -34,6 +34,13 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'パスワードが正しくありません' }, { status: 401 })
     }
 
+    // 管理者は自分自身を削除できない
+    if (user.role === 'ADMIN') {
+      return NextResponse.json({ 
+        error: '管理者アカウントは設定画面から削除できません。他の管理者に依頼するか、先に一般ユーザーに降格してください。' 
+      }, { status: 403 })
+    }
+
     // アバター画像の削除
     if (user.avatar) {
       try {

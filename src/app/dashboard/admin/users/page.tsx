@@ -20,6 +20,8 @@ import {
   Bell,
   Map,
   Database,
+  UserPlus,
+  UserMinus,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ja } from 'date-fns/locale'
@@ -82,6 +84,11 @@ export default function UsersManagementPage() {
   const [dangerPassword, setDangerPassword] = useState('')
   const [dangerConfirmed, setDangerConfirmed] = useState(false)
   const [dangerProcessing, setDangerProcessing] = useState(false)
+  
+  // Role change
+  const [showRoleModal, setShowRoleModal] = useState(false)
+  const [rolePassword, setRolePassword] = useState('')
+  const [changingRole, setChangingRole] = useState(false)
 
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role !== 'ADMIN') {
@@ -150,6 +157,53 @@ export default function UsersManagementPage() {
     setSelectedUser(user)
     setDeletePassword('')
     setShowDeleteModal(true)
+  }
+
+  const openRoleModal = (user: User) => {
+    setSelectedUser(user)
+    setRolePassword('')
+    setShowRoleModal(true)
+  }
+
+  const handleChangeRole = async () => {
+    if (!selectedUser || !rolePassword) return
+
+    const newRole = selectedUser.role === 'ADMIN' ? 'USER' : 'ADMIN'
+    const action = newRole === 'ADMIN' ? '管理者に昇格' : '一般ユーザーに降格'
+
+    if (!confirm(`${selectedUser.name || selectedUser.email} を${action}しますか？`)) {
+      return
+    }
+
+    setChangingRole(true)
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          role: newRole,
+          password: rolePassword,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        await fetchUsers()
+        setShowRoleModal(false)
+        setSelectedUser(null)
+        setRolePassword('')
+        alert(data.message)
+      } else {
+        alert(data.error || 'ロール変更に失敗しました')
+      }
+    } catch (error) {
+      console.error('Failed to change role:', error)
+      alert('ロール変更に失敗しました')
+    } finally {
+      setChangingRole(false)
+    }
   }
 
   const handleDeleteUser = async () => {
@@ -309,19 +363,40 @@ export default function UsersManagementPage() {
                 </div>
               </div>
 
-              {user.role !== 'ADMIN' && (
+              {/* 自分以外のユーザーに対する操作ボタン */}
+              {user.id !== session?.user?.id && (
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* ロール変更ボタン */}
                   <button
-                    onClick={() => openRestrictionModal(user)}
+                    onClick={() => openRoleModal(user)}
                     className={`p-2 rounded-lg transition-colors ${
-                      user.isRestricted
-                        ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
-                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                      user.role === 'ADMIN'
+                        ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                        : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                     }`}
-                    title={user.isRestricted ? '制限を編集' : '制限を追加'}
+                    title={user.role === 'ADMIN' ? '一般ユーザーに降格' : '管理者に昇格'}
                   >
-                    <Ban className="w-5 h-5" />
+                    {user.role === 'ADMIN' ? (
+                      <UserMinus className="w-5 h-5" />
+                    ) : (
+                      <UserPlus className="w-5 h-5" />
+                    )}
                   </button>
+                  {/* 制限ボタン（一般ユーザーのみ） */}
+                  {user.role !== 'ADMIN' && (
+                    <button
+                      onClick={() => openRestrictionModal(user)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        user.isRestricted
+                          ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+                          : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                      }`}
+                      title={user.isRestricted ? '制限を編集' : '制限を追加'}
+                    >
+                      <Ban className="w-5 h-5" />
+                    </button>
+                  )}
+                  {/* 削除ボタン */}
                   <button
                     onClick={() => openDeleteModal(user)}
                     className="p-2 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
@@ -592,6 +667,102 @@ export default function UsersManagementPage() {
                   <>
                     <Trash2 className="w-5 h-5" />
                     ユーザーを削除
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Change Modal */}
+      {showRoleModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="glass-card p-6 w-full max-w-md animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-white">ロール変更</h3>
+              <button
+                onClick={() => setShowRoleModal(false)}
+                className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-gray-300">{selectedUser.name || selectedUser.email}</p>
+              <p className="text-sm text-gray-500">{selectedUser.email}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-sm text-gray-400">現在のロール:</span>
+                <span className={`px-2 py-0.5 text-xs rounded-lg ${
+                  selectedUser.role === 'ADMIN' 
+                    ? 'bg-red-500/20 text-red-400' 
+                    : 'bg-blue-500/20 text-blue-400'
+                }`}>
+                  {selectedUser.role === 'ADMIN' ? '管理者' : '一般ユーザー'}
+                </span>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-xl mb-4 ${
+              selectedUser.role === 'ADMIN' 
+                ? 'bg-orange-500/10 border border-orange-500/30' 
+                : 'bg-green-500/10 border border-green-500/30'
+            }`}>
+              <p className={`text-sm ${selectedUser.role === 'ADMIN' ? 'text-orange-300' : 'text-green-300'}`}>
+                {selectedUser.role === 'ADMIN' ? (
+                  <>
+                    <UserMinus className="w-4 h-4 inline mr-1" />
+                    このユーザーを<strong>一般ユーザー</strong>に降格します。
+                    管理機能にアクセスできなくなります。
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 inline mr-1" />
+                    このユーザーを<strong>管理者</strong>に昇格します。
+                    すべての管理機能にアクセスできるようになります。
+                  </>
+                )}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-300 mb-2 block">
+                  管理者パスワードを入力
+                </label>
+                <input
+                  type="password"
+                  value={rolePassword}
+                  onChange={(e) => setRolePassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="パスワード"
+                />
+              </div>
+
+              <button
+                onClick={handleChangeRole}
+                disabled={!rolePassword || changingRole}
+                className={`w-full py-3 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 disabled:bg-gray-600 disabled:cursor-not-allowed ${
+                  selectedUser.role === 'ADMIN'
+                    ? 'bg-orange-600 hover:bg-orange-500'
+                    : 'bg-green-600 hover:bg-green-500'
+                }`}
+              >
+                {changingRole ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    変更中...
+                  </>
+                ) : selectedUser.role === 'ADMIN' ? (
+                  <>
+                    <UserMinus className="w-5 h-5" />
+                    一般ユーザーに降格
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-5 h-5" />
+                    管理者に昇格
                   </>
                 )}
               </button>
